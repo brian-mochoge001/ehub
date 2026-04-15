@@ -1,13 +1,27 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, Button } from 'react-native';
+import { useState } from 'react';
 
 import { HelloWave } from '@/components/hello-wave';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Link } from 'expo-router';
+import { api } from '@/services/api';
 
 export default function HomeScreen() {
+  const [hubsCount, setHubsCount] = useState<number | null>(null);
+
+  const testConnection = async () => {
+    try {
+      const hubs = await api.getHubs();
+      setHubsCount(hubs.length);
+    } catch (error) {
+      console.error(error);
+      alert('Failed to connect to backend');
+    }
+  };
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -21,6 +35,15 @@ export default function HomeScreen() {
         <ThemedText type="title">Welcome!</ThemedText>
         <HelloWave />
       </ThemedView>
+
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Backend Connection</ThemedText>
+        <Button title="Test Connection" onPress={testConnection} />
+        {hubsCount !== null && (
+          <ThemedText>Found {hubsCount} hubs in the database.</ThemedText>
+        )}
+      </ThemedView>
+
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 1: Try it</ThemedText>
         <ThemedText>
