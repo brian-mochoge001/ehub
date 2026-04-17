@@ -24,9 +24,38 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      <Stack
+        screenOptions={{
+          animation: 'slide_from_right',
+          headerShown: false,
+        }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="miniservices/taxi" />
+        <Stack.Screen name="miniservices/food" />
+        <Stack.Screen name="miniservices/c2c" />
+        <Stack.Screen name="miniservices/ehost" />
+        <Stack.Screen name="miniservices/b2b" />
+        <Stack.Screen name="miniservices/eliquor" />
+        <Stack.Screen name="miniservices/ebus" />
+        <Stack.Screen name="miniservices/edelivery" />
+        <Stack.Screen name="miniservices/ehealth" />
+        <Stack.Screen name="miniservices/epay" />
+        <Stack.Screen name="miniservices/ebills" />
+        <Stack.Screen name="miniservices/ecinema" />
+        <Stack.Screen name="miniservices/egrocery" />
+        <Stack.Screen name="miniservices/elaundry" />
+        <Stack.Screen name="miniservices/eclean" />
+        <Stack.Screen name="miniservices/ejobs" />
+        <Stack.Screen name="miniservices/etravel" />
+        <Stack.Screen name="miniservices/eflights" />
+        <Stack.Screen name="miniservices/eRepare" />
+        <Stack.Screen name="shop/flash-sale" />
+        <Stack.Screen name="shop/all-categories" />
+        <Stack.Screen name="shop/category/[id]" />
+        <Stack.Screen name="shop/product/[id]" />
+        <Stack.Screen name="shop/payment" />
+        <Stack.Screen name="search" />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', animation: 'slide_from_bottom', title: 'Modal', headerShown: true }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

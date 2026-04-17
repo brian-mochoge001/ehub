@@ -29,4 +29,34 @@ export const api = {
     if (!response.ok) throw new Error('Failed to create task');
     return response.json();
   },
+
+  // Driver / Taxi Methods
+  createDriver: async (id: string, name: string, status: string = 'online') => {
+    const response = await fetch(`${API_URL}/drivers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, status }),
+    });
+    if (!response.ok) throw new Error('Failed to create driver');
+    return response.json();
+  },
+  updateLocation: async (id: string, longitude: number, latitude: number) => {
+    const response = await fetch(`${API_URL}/drivers/${id}/location`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ longitude, latitude }),
+    });
+    if (!response.ok) throw new Error('Failed to update location');
+    return response.json();
+  },
+  getDriverLocation: async (id: string) => {
+    const response = await fetch(`${API_URL}/drivers/${id}/location`);
+    if (!response.ok) throw new Error('Failed to fetch driver location');
+    return response.json();
+  },
+  getNearbyDrivers: async (longitude: number, latitude: number, limit: number = 5) => {
+    const response = await fetch(`${API_URL}/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}`);
+    if (!response.ok) throw new Error('Failed to fetch nearby drivers');
+    return response.json();
+  },
 };
