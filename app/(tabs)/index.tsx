@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingHorizontal: 20 },
   welcomeText: { fontSize: 14, opacity: 0.6 },
-  scrollContent: { paddingBottom: 100 },
+  scrollContent: { paddingBottom: 200 },
   iconButton: { padding: 10, borderRadius: 12, backgroundColor: 'rgba(128,128,128,0.1)' },
   walletCard: { marginHorizontal: 20, borderRadius: 25, padding: 20, marginBottom: 25, elevation: 5, shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   walletHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },

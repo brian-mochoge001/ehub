@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Image, ImageBackground, TextInput } from 'react-native';
-import { ArrowLeft, Search, Star, Heart, Home, HeartIcon } from 'lucide-react-native';
+import { ArrowLeft, Search, Star, Heart, HeartIcon, MapPinHouse } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -107,7 +107,7 @@ export default function HostScreen() {
               <ThemedText style={{ fontWeight: 'bold' }}>Learn More</ThemedText>
             </TouchableOpacity>
           </View>
-          <Home size={60} color={activeColor} opacity={0.2} />
+          <MapPinHouse style={{ position: 'absolute', right: 0, bottom: 0, opacity: 0.4 }} size={150} color={activeColor} />
         </View>
       </ScrollView>
     </ThemedView>

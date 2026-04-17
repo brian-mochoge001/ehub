@@ -159,8 +159,15 @@ export default function FoodScreen() {
             </View>
           </TouchableOpacity>
         ))}
-
         <View style={{ height: 40 }} />
+        <ThemedView style={{ padding: 20 }}>
+          <ThemedView style={{ alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 20, borderRadius: 20, backgroundColor: colorScheme === 'light' ? '#FFF3E0' : '#4E342E' }}>
+            <ThemedText style={{ fontSize: 14 }}>Do you have a <ThemedText style={{ fontWeight: 'bold', fontSize: 24, color: activeColor }}>Restaurant?</ThemedText> Partner with us</ThemedText>
+            <TouchableOpacity style={[styles.learnMoreBtn, { borderColor: Colors[colorScheme].text }]}>
+              <ThemedText style={{ fontWeight: 'bold' }}>Learn More</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+        </ThemedView>
       </ScrollView>
     </ThemedView>
   );
@@ -210,4 +217,5 @@ const styles = StyleSheet.create({
   detailItem: { flexDirection: 'row', alignItems: 'center' },
   detailText: { fontSize: 12, color: '#888', marginLeft: 5 },
   detailSeparator: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#ddd', marginHorizontal: 10 },
+  learnMoreBtn: { borderWidth: 1, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, marginTop: 10, alignSelf: 'flex-start' },
 });
