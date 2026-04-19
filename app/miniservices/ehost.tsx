@@ -116,7 +116,7 @@ export default function HostScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  searchHeader: { position: 'absolute', top: 50, left: 0, right: 0, zIndex: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 15 },
+  searchHeader: { position: 'absolute', top: 50, zIndex: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 15 },
   backButton: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', elevation: 5 },
   searchBar: { flex: 1, height: 50, borderRadius: 25, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, elevation: 5, shadowOpacity: 0.1, shadowRadius: 10 },
   scrollContent: { paddingBottom: 40 },

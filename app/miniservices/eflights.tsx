@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 
 const POPULAR_DESTINATIONS = [
   { id: '1', name: 'Zanzibar', country: 'Tanzania', image: 'https://images.unsplash.com/photo-1586500036706-41963de24d8b?w=400', price: '$250' },
-  { id: '2', name: 'Cape Town', country: 'South Africa', image: 'https://images.unsplash.com/photo-1580619305218-8423a7f19b8a?w=400', price: '$450' },
+  { id: '2', name: 'Cape Town', country: 'South Africa', image: 'https://i.pinimg.com/1200x/e7/d1/15/e7d115e4ab425c2334e11a6432ec4830.jpg', price: '$450' },
   { id: '3', name: 'Dubai', country: 'UAE', image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=400', price: '$680' },
 ];
 
@@ -127,12 +127,12 @@ export default function FlightsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  blueHeader: { height: 180, paddingHorizontal: 20, paddingTop: 50 },
+  blueHeader: { paddingHorizontal: 20, paddingTop: 50, paddingBottom: 20 },
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)' },
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   scrollContent: { paddingBottom: 40, paddingHorizontal: 20 },
-  bookingCard: { marginTop: -60, borderRadius: 25, padding: 20, elevation: 5, shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, marginBottom: 30 },
+  bookingCard: { marginTop: 20, borderRadius: 25, padding: 20, elevation: 5, shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, marginBottom: 30 },
   tabContainer: { flexDirection: 'row', marginBottom: 25, borderBottomWidth: 1, borderBottomColor: 'rgba(128,128,128,0.1)' },
   tab: { paddingVertical: 10, marginRight: 20 },
   activeTab: { paddingVertical: 10, marginRight: 20, borderBottomWidth: 3 },

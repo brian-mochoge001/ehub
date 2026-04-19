@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   salaryText: { fontSize: 14 },
   cvCard: { marginHorizontal: 20, borderRadius: 25, padding: 20, flexDirection: 'row', overflow: 'hidden', marginTop: 10 },
   cvTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  cvSubtitle: { color: '#fff', fontSize: 12, opacity: 0.8, marginVertical: 12 },
+  cvSubtitle: { color: '#fff', fontSize: 12, opacity: 0.8, marginVertical: 12, maxWidth: '75%' },
   cvBtn: { alignSelf: 'flex-start', backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 10 },
-  cvImage: { width: 100, height: 100, position: 'absolute', right: -10, bottom: -10, opacity: 0.5 },
+  cvImage: { width: 120, height: 120, borderRadius: 60, position: 'absolute', right: -10, bottom: -10, opacity: 0.8 },
 });

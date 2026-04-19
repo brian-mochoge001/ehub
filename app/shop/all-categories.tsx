@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { ArrowLeft, Search, Smartphone, Shirt, House, Footprints, Dumbbell, Star } from 'lucide-react-native';
+import { ArrowLeft, Search } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -9,61 +9,84 @@ import { useRouter } from 'expo-router';
 
 const CATEGORIES_DATA = [
   { 
-    id: 'electronics', 
-    name: 'Electronics', 
-    icon: Smartphone,
+    id: 'groceries', 
+    name: 'Groceries', 
+    image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80',
     subcategories: [
-      { id: 'phones', name: 'Smartphones', image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&q=80' },
-      { id: 'laptops', name: 'Laptops', image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&q=80' },
-      { id: 'audio', name: 'Audio', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80' },
-      { id: 'watches', name: 'Smart Watches', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80' },
+      { id: 'fruits', name: 'Fruits & Vegetables', image: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=400&q=80' },
+      { id: 'meat', name: 'Meat & Fish', image: 'https://images.unsplash.com/photo-1604908176997-4319c3dfe52b?w=400&q=80' },
+      { id: 'beverages', name: 'Beverages', image: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&q=80' },
+      { id: 'snacks', name: 'Snacks', image: 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=400&q=80' },
+    ]
+  },
+  {
+    id: 'baby', 
+    name: 'Baby Products', 
+    image: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?w=400&q=80',
+    subcategories: [
+      { id: 'diapers', name: 'Diapers', image: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400&q=80' },
+      { id: 'feeding', name: 'Feeding', image: 'https://images.unsplash.com/photo-1604917877934-07d8d248d396?w=400&q=80' },
+      { id: 'baby-toys', name: 'Baby Toys', image: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=400&q=80' },
     ]
   },
   { 
-    id: 'fashion', 
-    name: 'Fashion', 
-    icon: Shirt,
+    id: 'books', 
+    name: 'Books & Stationery', 
+    image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&q=80',
     subcategories: [
-      { id: 'men', name: 'Men\'s Wear', image: 'https://images.unsplash.com/photo-1516259762381-22954d7d3ad2?w=400&q=80' },
-      { id: 'women', name: 'Women\'s Wear', image: 'https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?w=400&q=80' },
-      { id: 'kids', name: 'Kids', image: 'https://images.unsplash.com/photo-1514090458221-65bb69af63e6?w=400&q=80' },
+      { id: 'novels', name: 'Novels', image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&q=80' },
+      { id: 'education', name: 'Educational Books', image: 'https://images.unsplash.com/photo-1584697964154-8a6cdb6c96f8?w=400&q=80' },
+      { id: 'office-supplies', name: 'Office Supplies', image: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&q=80' },
     ]
   },
   { 
-    id: 'home', 
-    name: 'Home', 
-    icon: House,
+    id: 'automotive', 
+    name: 'Automotive', 
+    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=400&q=80',
     subcategories: [
-      { id: 'furniture', name: 'Furniture', image: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400&q=80' },
-      { id: 'kitchen', name: 'Kitchen', image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&q=80' },
-      { id: 'decor', name: 'Decor', image: 'https://images.unsplash.com/photo-1513519247388-4466627e30cd?w=400&q=80' },
+      { id: 'car-accessories', name: 'Car Accessories', image: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=400&q=80' },
+      { id: 'motorbike', name: 'Motorbike', image: 'https://images.unsplash.com/photo-1558981359-8f3b3f6b2f7b?w=400&q=80' },
+      { id: 'tools', name: 'Tools & Equipment', image: 'https://images.unsplash.com/photo-1581090700227-1e8c6c7b5b3b?w=400&q=80' },
     ]
   },
   { 
-    id: 'shoes', 
-    name: 'Shoes', 
-    icon: Footprints,
+    id: 'gaming', 
+    name: 'Gaming', 
+    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80',
     subcategories: [
-      { id: 'sneakers', name: 'Sneakers', image: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=400&q=80' },
-      { id: 'formal', name: 'Formal', image: 'https://images.unsplash.com/photo-1531310197839-ccf54634509e?w=400&q=80' },
+      { id: 'consoles', name: 'Consoles', image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400&q=80' },
+      { id: 'games', name: 'Video Games', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&q=80' },
+      { id: 'accessories', name: 'Gaming Accessories', image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=400&q=80' },
     ]
   },
   { 
-    id: 'fitness', 
-    name: 'Fitness', 
-    icon: Dumbbell,
+    id: 'pets', 
+    name: 'Pet Supplies', 
+    image: 'https://images.unsplash.com/photo-1558788353-f76d92427f16?w=400&q=80',
     subcategories: [
-      { id: 'gym', name: 'Gym Gear', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80' },
-      { id: 'yoga', name: 'Yoga', image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&q=80' },
+      { id: 'dog', name: 'Dog Supplies', image: 'https://images.unsplash.com/photo-1558788353-f76d92427f16?w=400&q=80' },
+      { id: 'cat', name: 'Cat Supplies', image: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=400&q=80' },
+      { id: 'pet-food', name: 'Pet Food', image: 'https://images.unsplash.com/photo-1589927986089-35812388d1d4?w=400&q=80' },
     ]
   },
   { 
-    id: 'beauty', 
-    name: 'Beauty', 
-    icon: Star,
+    id: 'travel', 
+    name: 'Travel', 
+    image: 'https://images.unsplash.com/photo-1502920917128-1aa500764b6e?w=400&q=80',
     subcategories: [
-      { id: 'makeup', name: 'Makeup', image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=400&q=80' },
-      { id: 'skincare', name: 'Skincare', image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&q=80' },
+      { id: 'bags', name: 'Travel Bags', image: 'https://images.unsplash.com/photo-1502920917128-1aa500764b6e?w=400&q=80' },
+      { id: 'suitcases', name: 'Suitcases', image: 'https://images.unsplash.com/photo-1522199710521-72d69614c702?w=400&q=80' },
+      { id: 'travel-accessories', name: 'Travel Accessories', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&q=80' },
+    ]
+  },
+  { 
+    id: 'construction', 
+    name: 'Construction', 
+    image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400&q=80',
+    subcategories: [
+      { id: 'building', name: 'Building Materials', image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400&q=80' },
+      { id: 'hardware', name: 'Hardware', image: 'https://images.unsplash.com/photo-1581147036324-c2d7a4c3f98f?w=400&q=80' },
+      { id: 'power-tools', name: 'Power Tools', image: 'https://images.unsplash.com/photo-1586864387789-628af9feed72?w=400&q=80' },
     ]
   },
 ];
@@ -99,9 +122,7 @@ export default function AllCategoriesScreen() {
                 style={styles.sidebarItem}
                 onPress={() => setActiveCategoryId(cat.id)}
               >
-                <View style={[styles.sidebarIcon, activeCategoryId === cat.id && { backgroundColor: activeColor }]}>
-                  <cat.icon size={20} color={activeCategoryId === cat.id ? '#fff' : '#888'} />
-                </View>
+                <Image source={{ uri: cat.image }} style={{ width: 40, height: 40, borderRadius: 20 }} />
                 <ThemedText style={[
                   styles.sidebarText, 
                   activeCategoryId === cat.id && { color: activeColor, fontWeight: 'bold' }
@@ -157,7 +178,6 @@ const styles = StyleSheet.create({
   content: { flex: 1, flexDirection: 'row' },
   sidebar: { width: 80, borderRightWidth: 1 },
   sidebarItem: { paddingVertical: 15, alignItems: 'center', position: 'relative' },
-  sidebarIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 5 },
   sidebarText: { fontSize: 10, textAlign: 'center' },
   activeIndicator: { position: 'absolute', right: 0, top: '25%', bottom: '25%', width: 3, borderTopLeftRadius: 3, borderBottomLeftRadius: 3 },
   mainContent: { flex: 1 },
