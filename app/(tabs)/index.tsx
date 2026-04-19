@@ -7,6 +7,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 import { ProductSkeleton } from '@/components/Skeleton';
+import { useSession } from '@/services/auth-client';
 
 const MINISERVICES = [
   { id: 'etaxi', name: 'eTaxi', icon: Car, color: '#FFD700', route: '/miniservices/taxi' },
@@ -42,6 +43,7 @@ const PRODUCTS = [
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const router = useRouter();
+  const { data: session } = useSession();
 
   // Infinite Scroll State
   const [displayProducts, setDisplayProducts] = useState(PRODUCTS);
@@ -64,7 +66,7 @@ export default function HomeScreen() {
     <View>
       <View style={styles.header}>
         <View>
-          <ThemedText style={styles.welcomeText}>Hello, User</ThemedText>
+          <ThemedText style={styles.welcomeText}>Hello, {session?.user.name || 'Guest'}</ThemedText>
           <ThemedText type="title">eHub Mall</ThemedText>
         </View>
         <TouchableOpacity style={styles.iconButton}>

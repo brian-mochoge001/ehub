@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Pressable } from 'react-native';
-import { Trash2, Plus, Minus, ShoppingCart, Package, ChevronRight, Store, ClipboardList, PlusCircle, MoreVertical } from 'lucide-react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Pressable, ActivityIndicator } from 'react-native';
+import { Trash2, Plus, Minus, ShoppingCart, Package, ChevronRight, Store, ClipboardList, PlusCircle, MoreVertical, LogIn } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSession } from '@/services/auth-client';
 
 const INITIAL_LISTINGS = [
   { id: '1', name: 'Samsung Galaxy S24 Ultra', price: 59999.99, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80', status: 'Active' },
@@ -47,6 +48,7 @@ export default function StoreScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme() ?? 'light';
   const router = useRouter();
+  const { data: session, isPending } = useSession();
   const activeColor = Colors[colorScheme].tint;
   const cardBg = colorScheme === 'light' ? '#fff' : '#1A1C1E';
   const borderColor = colorScheme === 'light' ? '#F0F0F0' : '#2A2C2E';
@@ -266,6 +268,38 @@ export default function StoreScreen() {
       )}
     </View>
   );
+
+  if (isPending) {
+    return (
+      <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={activeColor} />
+      </ThemedView>
+    );
+  }
+
+  if (!session) {
+    return (
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <ThemedText style={{ fontSize: 28, fontWeight: 'bold' }} type="title">My Store</ThemedText>
+        </View>
+        <View style={styles.guestContainer}>
+          <View style={[styles.guestIconCircle, { backgroundColor: activeColor + '15' }]}>
+            <Store size={60} color={activeColor} />
+          </View>
+          <ThemedText type="subtitle" style={styles.guestTitle}>Manage Your Store</ThemedText>
+          <ThemedText style={styles.guestSubtitle}>Sign in to manage your listings, view your cart, and track your orders.</ThemedText>
+          <TouchableOpacity 
+            style={[styles.loginBtn, { backgroundColor: activeColor }]}
+            onPress={() => router.push('/(auth)/login')}
+          >
+            <LogIn size={20} color="#fff" />
+            <ThemedText style={styles.loginBtnText}>Sign In / Sign Up</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
@@ -612,4 +646,12 @@ const styles = StyleSheet.create({
     color: '#757575',
     paddingHorizontal: 40,
   },
+  
+  // Guest Styles
+  guestContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40, paddingBottom: 100 },
+  guestIconCircle: { width: 120, height: 120, borderRadius: 60, justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+  guestTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
+  guestSubtitle: { fontSize: 16, opacity: 0.6, textAlign: 'center', lineHeight: 24, marginBottom: 40 },
+  loginBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 15, gap: 10, width: '100%' },
+  loginBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

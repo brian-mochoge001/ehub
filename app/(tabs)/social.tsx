@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
-import { MessageCircle, Bell, Search, Package, Info, Tag } from 'lucide-react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { MessageCircle, Bell, Search, Package, Info, Tag, LogIn } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSession } from '@/services/auth-client';
+import { useRouter } from 'expo-router';
 
 const MESSAGES = [
   { id: '1', user: 'Alex Driver', text: 'I am arriving in 2 minutes.', time: '10:30 AM', unread: true, avatar: 'AD' },
@@ -22,6 +24,40 @@ const NOTIFICATIONS = [
 export default function SocialScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const [activeTab, setActiveTab] = useState<'inbox' | 'notifications'>('inbox');
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+
+  if (isPending) {
+    return (
+      <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors[colorScheme].tint} />
+      </ThemedView>
+    );
+  }
+
+  if (!session) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.header}>
+          <ThemedText type="title">Social</ThemedText>
+        </View>
+        <View style={styles.guestContainer}>
+          <View style={[styles.guestIconCircle, { backgroundColor: Colors[colorScheme].tint + '15' }]}>
+            <MessageCircle size={60} color={Colors[colorScheme].tint} />
+          </View>
+          <ThemedText type="subtitle" style={styles.guestTitle}>Connect with Others</ThemedText>
+          <ThemedText style={styles.guestSubtitle}>Sign in to see your messages, notifications, and stay updated with the eHub community.</ThemedText>
+          <TouchableOpacity 
+            style={[styles.loginBtn, { backgroundColor: Colors[colorScheme].tint }]}
+            onPress={() => router.push('/(auth)/login')}
+          >
+            <LogIn size={20} color="#fff" />
+            <ThemedText style={styles.loginBtnText}>Sign In / Sign Up</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -121,4 +157,12 @@ const styles = StyleSheet.create({
   msgText: { flex: 1, fontSize: 13, opacity: 0.7 },
   noteBody: { fontSize: 13, opacity: 0.7, lineHeight: 18 },
   unreadDot: { width: 10, height: 10, borderRadius: 5, marginLeft: 10 },
+  
+  // Guest Styles
+  guestContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
+  guestIconCircle: { width: 120, height: 120, borderRadius: 60, justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+  guestTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
+  guestSubtitle: { fontSize: 16, opacity: 0.6, textAlign: 'center', lineHeight: 24, marginBottom: 40 },
+  loginBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 15, gap: 10, width: '100%' },
+  loginBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

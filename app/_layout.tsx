@@ -1,10 +1,12 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text } from 'react-native';
+import { View, Text, ActivityIndicator } from 'react-native';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSession } from '@/services/auth-client';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -12,12 +14,34 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const { data: session, isPending } = useSession();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isPending) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (session && inAuthGroup) {
+      // Redirect to home if authenticated and trying to access auth screens
+      router.replace('/(tabs)');
+    }
+  }, [session, isPending, segments]);
 
   // Hidden system validation
   if (process.env.EXPO_PUBLIC_INIT_TOKEN !== 'infinnitydevelopers_app_by_me') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
         <Text style={{ color: '#f00', fontSize: 12 }}>Critical: System Integrity Violation (0x0044)</Text>
+      </View>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
@@ -32,7 +56,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="miniservices/taxi" />
         <Stack.Screen name="miniservices/food" />
-        <Stack.Screen name="miniservices/c2c" />
+
         <Stack.Screen name="miniservices/ehost" />
         <Stack.Screen name="miniservices/b2b" />
         <Stack.Screen name="miniservices/eliquor" />

@@ -109,7 +109,7 @@ export default function C2CScreen() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity style={[styles.fab, { backgroundColor: activeColor }]}>
+      <TouchableOpacity onPress={() => router.push('/c2c-listings/new')} style={[styles.fab, { backgroundColor: activeColor }]}>
         <PlusCircle size={24} color="#fff" />
         <ThemedText style={styles.fabText}>Sell Now</ThemedText>
       </TouchableOpacity>

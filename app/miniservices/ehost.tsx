@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   banner: { justifyContent:'flex-end', alignItems:'center', height: 400 },
   bannerOverlay: { paddingBottom: 30, alignItems: 'center', maxWidth: '60%' },
   flexibleBtn: { backgroundColor: '#fff', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, elevation: 2 },
-  catList: { padding: 20, gap: 30, justifyContent: 'space-between' },
+  catList: { padding: 20, gap: 30, justifyContent: 'space-between', },
   catItem: { alignItems: 'center', opacity: 0.7 },
   catEmoji: { fontSize: 24, marginBottom: 8 },
   catName: { fontSize: 12, fontWeight: '500' },

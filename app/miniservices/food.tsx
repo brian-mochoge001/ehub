@@ -1,52 +1,83 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, ScrollView, TextInput, TouchableOpacity, Image, FlatList } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Bike, Heart, Search, MapPin, ShoppingBag, Star, Clock, ArrowLeft, SlidersHorizontal } from 'lucide-react-native';
+import { Bike, Heart, Search, MapPin, ShoppingBag, Star, Clock, ArrowLeft, SlidersHorizontal, ChevronRight } from 'lucide-react-native';
+import { ProductSkeleton } from '@/components/Skeleton'; // Assuming a similar skeleton can be used for food items
 
+// Mock Data - Updated and expanded
 const CATEGORIES = [
-  { id: '1', name: 'Pizza', icon: '🍕' },
-  { id: '2', name: 'Burgers', icon: '🍔' },
-  { id: '3', name: 'Sushi', icon: '🍣' },
-  { id: '4', name: 'Coffee', icon: '☕' },
-  { id: '5', name: 'Desserts', icon: '🍦' },
-  { id: '6', name: 'Healthy', icon: '🥗' },
+  { id: '1', name: 'Pizza', image_url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500&q=80' },
+  { id: '2', name: 'Burgers', image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500&q=80' },
+  { id: '3', name: 'Sushi', image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80' },
+  { id: '4', name: 'Coffee', image_url: 'https://images.unsplash.com/photo-1497636577773-fd124446c5a3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+  { id: '5', name: 'Desserts', image_url: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+  { id: '6', name: 'Healthy', image_url: 'https://images.unsplash.com/photo-1512621776951-a573b35f2ed6?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
 ];
 
 const RESTAURANTS = [
   {
     id: '1',
-    name: 'Gourmet Burger Kitchen',
+    shop_name: 'Gourmet Burger Kitchen',
+    description: 'Serving up the best burgers in town since 2005. Fresh ingredients, great taste.',
     cuisine: 'American • Burgers',
     rating: 4.8,
+    review_count: 1250,
     time: '15-25 min',
     fee: 'Free',
-    image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500&q=80',
+    logo_url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500&q=80',
+    header_image_url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8YnVyZ2VyfHx8fHx8MTY4Mzg3MjcwNg&ixlib=rb-4.0.3&q=80&w=1080',
     featured: true,
+    is_active: true,
+    addressText: '123 Burger St, Nairobi',
+    operating_hours: [{ day_of_week: 1, open_time: '09:00', close_time: '22:00' }],
   },
   {
     id: '2',
-    name: 'Sushi Zen Master',
+    shop_name: 'Sushi Zen Master',
+    description: 'Authentic Japanese sushi prepared by master chefs. Experience the taste of Tokyo.',
     cuisine: 'Japanese • Seafood',
     rating: 4.9,
+    review_count: 980,
     time: '20-35 min',
     fee: '$1.99',
-    image: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500&q=80',
+    logo_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500&q=80',
+    header_image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8c3VzaGkxfHx8fHwxNjg0Njg1MTc3&ixlib=rb-4.0.3&q=80&w=1080',
     featured: false,
+    is_active: true,
+    addressText: '456 Sushi Ave, Nairobi',
+    operating_hours: [{ day_of_week: 1, open_time: '11:00', close_time: '23:00' }],
   },
   {
     id: '3',
-    name: 'Napoli Pizzeria',
+    shop_name: 'Napoli Pizzeria',
+    description: 'Traditional Neapolitan pizzas, baked in a wood-fired oven. A slice of Italy in every bite.',
     cuisine: 'Italian • Pizza',
     rating: 4.7,
+    review_count: 1500,
     time: '25-40 min',
     fee: '$0.99',
-    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80',
+    logo_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80',
+    header_image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8cGl6emF8fHx8fHwxNjg0Njg1NTA3&ixlib=rb-4.0.3&q=80&w=1080',
     featured: true,
+    is_active: false,
+    addressText: '789 Pizza Blvd, Nairobi',
+    operating_hours: [],
   },
+];
+
+const FOOD_ITEMS = [
+  { id: 'fi1', name: 'Classic Beef Burger', description: 'Juicy beef patty, fresh lettuce, tomato, onion, and our special sauce.', price: 950.00, image_url: 'https://images.unsplash.com/photo-1568901346379-847e0915a111?w=500&q=80', vendor_id: '1', restaurant_name: 'Gourmet Burger Kitchen', rating: 4.5 },
+  { id: 'fi2', name: 'Sushi Platter Deluxe', description: 'Assortment of fresh sashimi, nigiri, and maki rolls.', price: 2500.00, image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500&q=80', vendor_id: '2', restaurant_name: 'Sushi Zen Master', rating: 4.9 },
+  { id: 'fi3', name: 'Margherita Pizza', description: 'Classic pizza with tomato sauce, mozzarella, and fresh basil.', price: 1200.00, image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80', vendor_id: '3', restaurant_name: 'Napoli Pizzeria', rating: 4.7 },
+  { id: 'fi4', name: 'Veggie Supreme Pizza', description: 'Loaded with fresh vegetables and rich mozzarella cheese.', price: 1350.00, image_url: 'https://images.unsplash.com/photo-1604382186842-bf2330a51989?w=500&q=80', vendor_id: '3', restaurant_name: 'Napoli Pizzeria', rating: 4.6 },
+  { id: 'fi5', name: 'Chicken Teriyaki Bowl', description: 'Grilled chicken with teriyaki sauce, rice, and steamed vegetables.', price: 1100.00, image_url: 'https://images.unsplash.com/photo-1612927601601-52775796c8a7?w=500&q=80', vendor_id: '2', restaurant_name: 'Sushi Zen Master', rating: 4.6 },
+  { id: 'fi6', name: 'Double Cheese Burger', description: 'Two juicy beef patties, double cheese, pickles, and our secret sauce.', price: 1200.00, image_url: 'https://images.unsplash.com/photo-1582236528739-16e53c4481d6?w=500&q=80', vendor_id: '1', restaurant_name: 'Gourmet Burger Kitchen', rating: 4.7 },
+  { id: 'fi7', name: 'Spicy Tuna Roll', description: 'Fresh tuna with spicy mayo and cucumber, rolled in seaweed and rice.', price: 900.00, image_url: 'https://images.unsplash.com/photo-1579871701386-8d1474136f32?w=500&q=80', vendor_id: '2', restaurant_name: 'Sushi Zen Master', rating: 4.8 },
+  { id: 'fi8', name: 'Pepperoni Passion Pizza', description: 'Generous servings of spicy pepperoni and melted mozzarella.', price: 1300.00, image_url: 'https://images.unsplash.com/photo-1628840040974-9d419b6d9e48?w=500&q=80', vendor_id: '3', restaurant_name: 'Napoli Pizzeria', rating: 4.8 },
 ];
 
 export default function FoodScreen() {
@@ -54,121 +85,139 @@ export default function FoodScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = Colors[colorScheme].tint;
 
-  return (
-    <ThemedView style={styles.container}>
+  const renderFoodItem = ({ item }: { item: typeof FOOD_ITEMS[0] }) => (
+    <TouchableOpacity 
+      style={[styles.foodItemCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
+      onPress={() => router.push(`/food-items/${item.id}` as any)}
+    >
+      <Image source={{ uri: item.image_url }} style={styles.foodItemImage} />
+      <View style={styles.foodItemInfo}>
+        <ThemedText numberOfLines={1} style={styles.foodItemName}>{item.name}</ThemedText>
+        <ThemedText numberOfLines={1} style={styles.foodItemRestaurant}>{item.restaurant_name}</ThemedText>
+        <ThemedText numberOfLines={2} style={styles.foodItemDescription}>{item.description}</ThemedText>
+        <View style={styles.foodItemPriceRating}>
+          <ThemedText style={{ fontWeight: '500', fontSize: 12 }}>Ksh <ThemedText style={{ color: activeColor }}>{item.price.toFixed(2)}</ThemedText></ThemedText>
+          <View style={styles.ratingRow}>
+            <Star size={10} color="#FFD700" fill="#FFD700" />
+            <ThemedText style={styles.ratingText}>{item.rating}</ThemedText>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderHeader = () => (
+    <View>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
-        <View style={styles.addressContainer}>
+        <TouchableOpacity style={styles.deliveryToContainer}>
           <ThemedText style={styles.deliveryTo}>Delivery to</ThemedText>
           <View style={styles.locationRow}>
             <MapPin size={14} color={activeColor} />
             <ThemedText style={styles.addressText} numberOfLines={1}>Home, 123 Maple Avenue</ThemedText>
+            <ChevronRight size={14} color={activeColor} style={{ marginLeft: 5 }} />
           </View>
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.cartButton}>
           <ShoppingBag size={24} color={Colors[colorScheme].text} />
-          <View style={[styles.cartBadge, { backgroundColor: activeColor }]}>
-          </View>
+          <View style={[styles.cartBadge, { backgroundColor: activeColor }]} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Search Bar */}
-        <View style={styles.searchSection}>
-          <View style={[styles.searchContainer, { backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#2a2a2a' }]}>
-            <Search size={20} color="#888" style={styles.searchIcon} />
-            <TextInput 
-              placeholder="Search dishes or restaurants..." 
-              placeholderTextColor="#888"
-              style={[styles.searchInput, { color: Colors[colorScheme].text }]}
-            />
-          </View>
-          <TouchableOpacity style={[styles.filterButton, { backgroundColor: activeColor }]}>
-            <SlidersHorizontal size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Promo Banner */}
-        <View style={[styles.promoCard, { backgroundColor: colorScheme === 'light' ? '#FFF3E0' : '#4E342E' }]}>
-          <View style={styles.promoInfo}>
-            <ThemedText style={styles.promoTag}>FREE DELIVERY</ThemedText>
-            <ThemedText style={styles.promoTitle}>Summer Flavors</ThemedText>
-            <ThemedText style={styles.promoSubtitle}>free delivery for orders above Ksh 2500 within your county</ThemedText>
-          </View>
-          <Image 
-            source={{ uri: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&q=80' }} 
-            style={styles.promoImage}
+      {/* Search Bar */}
+      <View style={styles.searchSection}>
+        <View style={[styles.searchContainer, { backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#2a2a2a' }]}>
+          <Search size={20} color="#888" style={styles.searchIcon} />
+          <TextInput 
+            placeholder="Search dishes or restaurants..." 
+            placeholderTextColor="#888"
+            style={[styles.searchInput, { color: Colors[colorScheme].text }]}
           />
         </View>
+        <TouchableOpacity style={[styles.filterButton, { backgroundColor: activeColor }]}>
+          <SlidersHorizontal size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Categories */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesList}>
-          {CATEGORIES.map(cat => (
-            <TouchableOpacity key={cat.id} style={styles.categoryItem}>
-              <View style={[styles.categoryIcon, { backgroundColor: colorScheme === 'light' ? '#fff' : '#333' }]}>
-                <ThemedText style={styles.categoryEmoji}>{cat.icon}</ThemedText>
-              </View>
-              <ThemedText style={styles.categoryName}>{cat.name}</ThemedText>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Featured Section */}
-        <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Featured Restaurants</ThemedText>
-          <TouchableOpacity><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
+      {/* Promo Banner */}
+      <View style={[styles.promoCard, { backgroundColor: colorScheme === 'light' ? '#FFF3E0' : '#4E342E' }]}>
+        <View style={styles.promoInfo}>
+          <ThemedText style={styles.promoTag}>FREE DELIVERY</ThemedText>
+          <ThemedText style={styles.promoTitle}>Summer Flavors</ThemedText>
+          <ThemedText style={styles.promoSubtitle}>free delivery for orders above Ksh 2500 within your county</ThemedText>
         </View>
+        <Image 
+          source={{ uri: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&q=80' }} 
+          style={styles.promoImage}
+        />
+      </View>
 
+      {/* Categories */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesList}>
+        {CATEGORIES.map(cat => (
+          <TouchableOpacity key={cat.id} style={styles.categoryItem}>
+            <View style={[styles.categoryIcon, { backgroundColor: colorScheme === 'light' ? '#fff' : '#333' }]}>
+              <Image source={{ uri: cat.image_url }} style={styles.categoryImage} />
+            </View>
+            <ThemedText style={styles.categoryName}>{cat.name}</ThemedText>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Quick Restaurants */}
+      <View style={styles.sectionHeader}>
+        <ThemedText type="subtitle">Restaurants Near You</ThemedText>
+        <TouchableOpacity onPress={() => router.push('/restaurants' as any)}>
+          <ThemedText style={{ color: activeColor }}>See All</ThemedText>
+        </TouchableOpacity>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRestaurantsList}>
         {RESTAURANTS.map(restaurant => (
-          <TouchableOpacity key={restaurant.id} style={[styles.restaurantCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}>
-            <Image source={{ uri: restaurant.image }} style={styles.restaurantImage} />
-            {restaurant.featured && (
-              <View style={[styles.featuredBadge, { backgroundColor: activeColor }]}>
-                <ThemedText style={styles.featuredBadgeText}>Featured</ThemedText>
-              </View>
-            )}
-            <TouchableOpacity style={styles.favoriteButton}>
-              <Heart size={20} color="#fff" />
-            </TouchableOpacity>
-            
-            <View style={styles.restaurantInfo}>
-              <View style={styles.restaurantNameRow}>
-                <ThemedText type="defaultSemiBold" style={styles.restaurantName}>{restaurant.name}</ThemedText>
-                <View style={styles.ratingBadge}>
-                  <Star size={14} color="#FFD700" fill="#FFD700" />
-                  <ThemedText style={styles.ratingText}>{restaurant.rating}</ThemedText>
-                </View>
-              </View>
-              
-              <ThemedText style={styles.cuisineText}>{restaurant.cuisine}</ThemedText>
-              
-              <View style={styles.deliveryDetails}>
-                <View style={styles.detailItem}>
-                  <Clock size={14} color="#888" />
-                  <ThemedText style={styles.detailText}>{restaurant.time}</ThemedText>
-                </View>
-                <View style={styles.detailSeparator} />
-                <View style={styles.detailItem}>
-                  <Bike size={14} color="#888" />
-                  <ThemedText style={styles.detailText}>{restaurant.fee === 'Free' ? 'Free Delivery' : restaurant.fee}</ThemedText>
-                </View>
+          <TouchableOpacity 
+            key={restaurant.id} 
+            style={[styles.quickRestaurantCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
+            onPress={() => router.push(`/restaurants/${restaurant.id}` as any)}
+          >
+            <Image source={{ uri: restaurant.logo_url }} style={styles.quickRestaurantImage} />
+            <View style={styles.quickRestaurantInfo}>
+              <ThemedText numberOfLines={1} style={styles.quickRestaurantName}>{restaurant.shop_name}</ThemedText>
+              <View style={styles.ratingRow}>
+                <Star size={12} color="#FFD700" fill="#FFD700" />
+                <ThemedText style={styles.quickRestaurantRating}>{restaurant.rating}</ThemedText>
               </View>
             </View>
           </TouchableOpacity>
         ))}
-        <View style={{ height: 40 }} />
-        <ThemedView style={{ padding: 20 }}>
-          <ThemedView style={{ alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: 20, borderRadius: 20, backgroundColor: colorScheme === 'light' ? '#FFF3E0' : '#4E342E' }}>
-            <ThemedText style={{ fontSize: 14 }}>Do you have a <ThemedText style={{ fontWeight: 'bold', fontSize: 24, color: activeColor }}>Restaurant?</ThemedText> Partner with us</ThemedText>
-            <TouchableOpacity style={[styles.learnMoreBtn, { borderColor: Colors[colorScheme].text }]}>
-              <ThemedText style={{ fontWeight: 'bold' }}>Learn More</ThemedText>
-            </TouchableOpacity>
-          </ThemedView>
-        </ThemedView>
       </ScrollView>
+
+      {/* All Food Items Section Title */}
+      <View style={styles.sectionHeader}>
+        <ThemedText type="subtitle">All Food Items</ThemedText>
+        <TouchableOpacity onPress={() => router.push('/food-items' as any)}>
+          <ThemedText style={{ color: activeColor }}>See All</ThemedText>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <ThemedView style={styles.container}>
+      <FlatList
+        data={FOOD_ITEMS}
+        keyExtractor={(item) => item.id}
+        renderItem={renderFoodItem}
+        numColumns={2}
+        ListHeaderComponent={renderHeader}
+        // Assuming infinite scroll for food items will be added later if needed
+        // onEndReached={loadMore}
+        // onEndReachedThreshold={0.5}
+        contentContainerStyle={styles.flatListContent}
+        columnWrapperStyle={styles.columnWrapper}
+        ListFooterComponent={<View style={{ height: 40 }} />}
+      />
     </ThemedView>
   );
 }
@@ -177,13 +226,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 50 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 },
   backButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(128,128,128,0.1)' },
-  addressContainer: { flex: 1, marginHorizontal: 15 },
+  deliveryToContainer: { flex: 1, marginHorizontal: 15 },
   deliveryTo: { fontSize: 10, opacity: 0.5, textTransform: 'uppercase', fontWeight: 'bold' },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   addressText: { fontSize: 14, fontWeight: '600', marginLeft: 4 },
-  cartButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  cartButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', position: 'relative' },
   cartBadge: { position: 'absolute', top: 0, right: 0, width: 16, height: 16, padding: 2, borderRadius: 8, justifyContent: 'center', alignItems: 'center', zIndex: 1 },
-  cartBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   scrollContent: { paddingBottom: 20 },
   searchSection: { flexDirection: 'row', paddingHorizontal: 20, marginBottom: 20, gap: 12 },
   searchContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 15, paddingHorizontal: 15, height: 50 },
@@ -199,23 +247,30 @@ const styles = StyleSheet.create({
   categoriesList: { paddingLeft: 20, paddingRight: 10, marginBottom: 25 },
   categoryItem: { alignItems: 'center', marginRight: 16 },
   categoryIcon: { width: 65, height: 65, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 2, shadowOpacity: 0.1, shadowRadius: 5 },
-  categoryEmoji: { fontSize: 30 },
+  categoryImage: { width: '100%', height: '100%', borderRadius: 20 },
   categoryName: { fontSize: 12, fontWeight: '600' },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, paddingHorizontal: 20 },
-  restaurantCard: { marginHorizontal: 20, borderRadius: 25, marginBottom: 20, overflow: 'hidden', elevation: 3, shadowOpacity: 0.1, shadowRadius: 10 },
-  restaurantImage: { width: '100%', height: 180 },
-  featuredBadge: { position: 'absolute', top: 15, left: 15, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-  featuredBadgeText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-  favoriteButton: { position: 'absolute', top: 15, right: 15, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
-  restaurantInfo: { padding: 15 },
-  restaurantNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  restaurantName: { fontSize: 18 },
-  ratingBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 215, 0, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
-  ratingText: { fontSize: 12, fontWeight: 'bold', color: '#FFB800', marginLeft: 4 },
-  cuisineText: { fontSize: 13, opacity: 0.5, marginBottom: 12 },
-  deliveryDetails: { flexDirection: 'row', alignItems: 'center' },
-  detailItem: { flexDirection: 'row', alignItems: 'center' },
-  detailText: { fontSize: 12, color: '#888', marginLeft: 5 },
-  detailSeparator: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#ddd', marginHorizontal: 10 },
+  // Quick Restaurants Styles
+  quickRestaurantsList: { paddingLeft: 20, paddingRight: 10, marginBottom: 25 },
+  quickRestaurantCard: { width: 150, borderRadius: 15, marginRight: 15, overflow: 'hidden', elevation: 2, shadowOpacity: 0.05, shadowRadius: 5 },
+  quickRestaurantImage: { width: '100%', height: 100 },
+  quickRestaurantInfo: { padding: 10 },
+  quickRestaurantName: { fontSize: 14, fontWeight: '600', marginBottom: 5 },
+  quickRestaurantRating: { fontSize: 12, fontWeight: 'bold', color: '#FFB800', marginLeft: 4 },
+  // Food Item Grid Styles
+  flatListContent: { paddingBottom: 20 },
+  columnWrapper: { justifyContent: 'space-between', paddingHorizontal: 20 },
+  foodItemCard: { width: '48%', borderRadius: 15, marginBottom: 15, overflow: 'hidden', elevation: 3, shadowOpacity: 0.1, shadowRadius: 10 },
+  foodItemImage: { width: '100%', height: 120 },
+  foodItemInfo: { padding: 10 },
+  foodItemName: { fontSize: 14, fontWeight: '600' },
+  foodItemRestaurant: { fontSize: 12, opacity: 0.7, marginBottom: 5 },
+  foodItemDescription: { fontSize: 10, opacity: 0.6, marginBottom: 8 },
+  foodItemPriceRating: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center' },
+  ratingText: { fontSize: 10, marginLeft: 3, color: '#888' },
   learnMoreBtn: { borderWidth: 1, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, marginTop: 10, alignSelf: 'flex-start' },
+  // Styles for the closed badge (reused from previous implementation)
+  closedBadge: { position: 'absolute', top: '50%', left: '50%', transform: [{ translateX: -50 }, { translateY: -50 }], paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: 'rgba(0,0,0,0.6)' },
+  closedBadgeText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
