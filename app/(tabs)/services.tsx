@@ -23,14 +23,14 @@ const FEATURED_SERVICES = [
   {
     id: 'taxi',
     name: 'eTaxi',
-    image: 'https://images.unsplash.com/photo-1638295402326-274099bfa11a?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+    image: 'https://i.pinimg.com/736x/75/93/9e/75939ef8d60f2c307acb022e1af0de96.jpg',
     description: 'Safe rides',
     route: '/miniservices/taxi',
   },
   {
     id: 'c2c',
     name: 'C2C',
-    image: 'https://cdn.ceoworld.biz/wp-content/uploads/2022/02/10-Things-To-Convince-Someone-To-Buy-Your-Products.jpg',
+    image: 'https://cdn.psychologytoday.com/sites/default/files/styles/image-article_inline_full/public/field_blog_entry_images/iStock_000052027484_Small.jpg?itok=vyeDyeLZ',
     description: 'Peer marketplace',
     route: '/miniservices/c2c',
   },
@@ -44,18 +44,18 @@ const FEATURED_SERVICES = [
 ];
 
 const ALL_SERVICES = [
-  { id: 'b2b', name: 'B2B', image: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?q=80&w=400', route: '/miniservices/b2b' },
+  { id: 'driver', name: 'Driver Hub', image: 'https://images.unsplash.com/photo-1638295402326-274099bfa11a?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/driver' },
+  { id: 'egrocery', name: 'eGrocery', image: 'https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/egrocery' },
   { id: 'eliquor', name: 'eLiquor', image: 'https://images.unsplash.com/photo-1570566965181-f1cde4b96d65?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/eliquor' },
   { id: 'ebus', name: 'eBus', image: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=400', route: '/miniservices/ebus' },
   { id: 'edelivery', name: 'eDelivery', image: 'https://images.unsplash.com/photo-1620455800201-7f00aeef12ed?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/edelivery' },
   { id: 'ehealth', name: 'eHealth', image: 'https://images.unsplash.com/photo-1666887360921-85952a86894f?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/ehealth' },
   { id: 'epay', name: 'ePay', image: 'https://images.unsplash.com/photo-1758519291442-6a34815b0ae3?q=80&w=1331&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/epay' },
-  { id: 'ebills', name: 'eBills', image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=400', route: '/miniservices/ebills' },
   { id: 'ecinema', name: 'eCinema', image: 'https://images.unsplash.com/photo-1595769816263-9b910be24d5f?q=80&w=1179&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/ecinema' },
-  { id: 'egrocery', name: 'eGrocery', image: 'https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/egrocery' },
   { id: 'elaundry', name: 'eLaundry', image: 'https://images.unsplash.com/photo-1610305401607-8745a10c75dd?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/elaundry' },
   { id: 'eclean', name: 'eClean', image: 'https://plus.unsplash.com/premium_photo-1663047397245-2ddad26c5dd7?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/eclean' },
   { id: 'ejobs', name: 'eJobs', image: 'https://images.unsplash.com/photo-1635350736475-c8cef4b21906?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/ejobs' },
+  { id: 'b2b', name: 'B2B', image: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?q=80&w=400', route: '/miniservices/b2b' },
   { id: 'etravel', name: 'eTravel', image: 'https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/etravel' },
   { id: 'eflights', name: 'eFlights', image: 'https://images.unsplash.com/photo-1569629743817-70d8db6c323b?q=80&w=1198&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/eflights' },
   { id: 'eRepare', name: 'eRepare', image: 'https://images.unsplash.com/photo-1659456553707-14712bb27032?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/eRepare' },

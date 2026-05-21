@@ -1,22 +1,45 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Calendar, Users, Plane, PlaneTakeoff, PlaneLanding, ChevronRight } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-
-const POPULAR_DESTINATIONS = [
-  { id: '1', name: 'Zanzibar', country: 'Tanzania', image: 'https://images.unsplash.com/photo-1586500036706-41963de24d8b?w=400', price: '$250' },
-  { id: '2', name: 'Cape Town', country: 'South Africa', image: 'https://i.pinimg.com/1200x/e7/d1/15/e7d115e4ab425c2334e11a6432ec4830.jpg', price: '$450' },
-  { id: '3', name: 'Dubai', country: 'UAE', image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=400', price: '$680' },
-];
+import { api } from '@/services/api';
+import { Colors } from '@/constants/theme';
 
 export default function FlightsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#0288D1';
   const isDark = colorScheme === 'dark';
+
+  const [flights, setFlights] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFlights();
+  }, []);
+
+  const fetchFlights = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getFlights();
+        setFlights(data || []);
+    } catch (err) {
+        console.error('Failed to fetch flights:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -86,40 +109,35 @@ export default function FlightsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Popular Destinations */}
+        {/* Available Flights */}
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Popular Destinations</ThemedText>
+          <ThemedText type="subtitle">Available Flights</ThemedText>
           <TouchableOpacity><ThemedText style={{ color: activeColor }}>View All</ThemedText></TouchableOpacity>
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.destList}>
-          {POPULAR_DESTINATIONS.map(dest => (
+          {flights.length > 0 ? flights.map(dest => (
             <TouchableOpacity key={dest.id} style={styles.destCard}>
-              <Image source={{ uri: dest.image }} style={styles.destImage} />
+              <View style={[styles.destImage, { backgroundColor: activeColor + '15', justifyContent: 'center', alignItems: 'center' }]}>
+                <Plane size={40} color={activeColor} />
+              </View>
               <View style={styles.destOverlay}>
                 <View>
-                  <ThemedText style={styles.destName}>{dest.name}</ThemedText>
-                  <ThemedText style={styles.destCountry}>{dest.country}</ThemedText>
+                  <ThemedText style={styles.destName}>{dest.origin} to {dest.destination}</ThemedText>
+                  <ThemedText style={styles.destCountry}>{dest.airline_name} • {dest.flight_number}</ThemedText>
+                  <ThemedText style={{ color: '#fff', fontSize: 10 }}>{new Date(dest.departure_time).toLocaleString()}</ThemedText>
                 </View>
                 <View style={styles.priceTag}>
-                  <ThemedText style={styles.priceText}>From {dest.price}</ThemedText>
+                  <ThemedText style={styles.priceText}>{dest.currency} {dest.price}</ThemedText>
                 </View>
               </View>
             </TouchableOpacity>
-          ))}
+          )) : (
+              <View style={{ alignItems: 'center', padding: 20 }}>
+                  <ThemedText style={{ opacity: 0.5 }}>No flights found</ThemedText>
+              </View>
+          )}
         </ScrollView>
-
-        {/* Travel Deals */}
-        <TouchableOpacity style={[styles.dealCard, { backgroundColor: isDark ? '#222' : '#f0f9ff' }]}>
-          <View style={styles.dealIcon}>
-            <Plane size={24} color={activeColor} />
-          </View>
-          <View style={{ flex: 1, marginLeft: 15 }}>
-            <ThemedText type="defaultSemiBold">Last Minute Deals!</ThemedText>
-            <ThemedText style={styles.dealText}>Save up to 40% on international flights booked today.</ThemedText>
-          </View>
-          <ChevronRight size={20} color="#888" />
-        </TouchableOpacity>
       </ScrollView>
     </ThemedView>
   );
@@ -155,7 +173,4 @@ const styles = StyleSheet.create({
   destCountry: { color: '#fff', fontSize: 12, opacity: 0.8 },
   priceTag: { backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   priceText: { color: '#000', fontSize: 10, fontWeight: 'bold' },
-  dealCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 20, marginTop: 10 },
-  dealIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(2, 136, 209, 0.1)', justifyContent: 'center', alignItems: 'center' },
-  dealText: { fontSize: 12, opacity: 0.6, marginTop: 4 },
 });

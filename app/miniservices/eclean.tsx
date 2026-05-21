@@ -1,23 +1,45 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Star, ChevronRight, Home, Sparkles, Building2, LayoutGrid } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-
-const CLEANING_SERVICES = [
-  { id: '1', name: 'House Cleaning', price: 'from $30', icon: Home, color: '#4CAF50' },
-  { id: '2', name: 'Office Cleaning', price: 'from $50', icon: Building2, color: '#2196F3' },
-  { id: '3', name: 'Carpet Cleaning', price: 'from $20', icon: Sparkles, color: '#FF9800' },
-];
+import { api } from '@/services/api';
 
 export default function CleanScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#4CAF50'; // Eco green
   const isDark = colorScheme === 'dark';
+
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCleaningServices();
+  }, []);
+
+  const fetchCleaningServices = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getServicesByType('cleaning');
+        setServices(data || []);
+    } catch (err) {
+        console.error('Failed to fetch cleaning services:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -50,18 +72,22 @@ export default function CleanScreen() {
           <ThemedText type="subtitle">Our Services</ThemedText>
         </View>
         
-        {CLEANING_SERVICES.map(service => (
+        {services.length > 0 ? services.map(service => (
           <TouchableOpacity key={service.id} style={[styles.serviceRow, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-            <View style={[styles.iconBox, { backgroundColor: service.color + '15' }]}>
-              <service.icon size={24} color={service.color} />
+            <View style={[styles.iconBox, { backgroundColor: activeColor + '15' }]}>
+              <Sparkles size={24} color={activeColor} />
             </View>
             <View style={styles.serviceInfo}>
               <ThemedText type="defaultSemiBold">{service.name}</ThemedText>
-              <ThemedText style={styles.servicePrice}>{service.price}</ThemedText>
+              <ThemedText style={styles.servicePrice}>{service.currency} {service.base_price}</ThemedText>
             </View>
             <ChevronRight size={20} color="#888" />
           </TouchableOpacity>
-        ))}
+        )) : (
+            <View style={{ alignItems: 'center', marginTop: 20 }}>
+                <ThemedText style={{ opacity: 0.5 }}>No services available</ThemedText>
+            </View>
+        )}
 
         {/* Reviews Section */}
         <View style={styles.sectionHeader}>

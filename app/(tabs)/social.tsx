@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MessageCircle, Bell, Search, Package, Info, Tag, LogIn, MessageCirclePlus } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
@@ -7,29 +7,8 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession } from '@/services/auth-client';
 import { useRouter } from 'expo-router';
+import { api } from '@/services/api';
 
-const MESSAGES = [
-  { id: '1', user: 'Alex Driver', text: 'I am arriving in 2 minutes.', time: '10:30 AM', unread: true, avatar: 'AD' },
-  { id: '2', user: 'Support Team', text: 'How was your last experience?', time: 'Yesterday', unread: false, avatar: 'ST' },
-  { id: '3', user: 'Emma Watson', text: 'Thanks for the gift!', time: '2 days ago', unread: false, avatar: 'EW' },
-  { id: '4', name: 'John Doe', text: 'Is the item still available?', time: '3 days ago', unread: false, avatar: 'JD' },
-  { id: '5', user: 'Alex Driver', text: 'I am arriving in 2 minutes.', time: '10:30 AM', unread: true, avatar: 'AD' },
-  { id: '6', user: 'Support Team', text: 'How was your last experience?', time: 'Yesterday', unread: false, avatar: 'ST' },
-  { id: '7', user: 'Emma Watson', text: 'Thanks for the gift!', time: '2 days ago', unread: false, avatar: 'EW' },
-  { id: '8', name: 'John Doe', text: 'Is the item still available?', time: '3 days ago', unread: false, avatar: 'JD' },
-];
-
-const NOTIFICATIONS = [
-  { id: '1', title: 'Order Delivered', body: 'Your package from eHub Store has been delivered.', time: '1 hour ago', type: 'order', icon: Package, color: '#4CAF50' },
-  { id: '2', title: 'Taxi Arriving', body: 'Your driver is nearby. Look for a white Toyota.', time: '2 hours ago', type: 'taxi', icon: Info, color: '#FFD700' },
-  { id: '3', title: 'Promo Alert', body: 'Get 20% off your next ride this weekend!', time: '5 hours ago', type: 'promo', icon: Tag, color: '#FF6347' },
-  { id: '4', title: 'Order Delivered', body: 'Your package from eHub Store has been delivered.', time: '1 hour ago', type: 'order', icon: Package, color: '#4CAF50' },
-  { id: '5', title: 'Taxi Arriving', body: 'Your driver is nearby. Look for a white Toyota.', time: '2 hours ago', type: 'taxi', icon: Info, color: '#FFD700' },
-  { id: '6', title: 'Promo Alert', body: 'Get 20% off your next ride this weekend!', time: '5 hours ago', type: 'promo', icon: Tag, color: '#FF6347' },
-  { id: '7', title: 'Order Delivered', body: 'Your package from eHub Store has been delivered.', time: '1 hour ago', type: 'order', icon: Package, color: '#4CAF50' },
-  { id: '8', title: 'Taxi Arriving', body: 'Your driver is nearby. Look for a white Toyota.', time: '2 hours ago', type: 'taxi', icon: Info, color: '#FFD700' },
-  { id: '9', title: 'Promo Alert', body: 'Get 20% off your next ride this weekend!', time: '5 hours ago', type: 'promo', icon: Tag, color: '#FF6347' },
-];
 
 export default function SocialScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -38,7 +17,33 @@ export default function SocialScreen() {
   const router = useRouter();
   const activeColor = Colors[colorScheme].tint;
 
-  if (isPending) {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (session) {
+        fetchSocialData();
+    }
+  }, [session]);
+
+  const fetchSocialData = async () => {
+    try {
+        setLoading(true);
+        const [msgs, notes] = await Promise.all([
+            api.getMessages(),
+            api.getNotifications()
+        ]);
+        setMessages(msgs || []);
+        setNotifications(notes || []);
+    } catch (err) {
+        console.error('Failed to fetch social data:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (isPending || (session && loading)) {
     return (
       <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={activeColor} />
@@ -103,42 +108,50 @@ export default function SocialScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {activeTab === 'inbox' ? (
           <View style={styles.listContainer}>
-            {MESSAGES.map(msg => (
+            {messages.length > 0 ? messages.map(msg => (
               <TouchableOpacity key={msg.id} style={[styles.itemCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}>
                 <View style={[styles.avatar, { backgroundColor: Colors[colorScheme].tint + '20' }]}>
-                  <ThemedText style={{ color: Colors[colorScheme].tint, fontWeight: 'bold' }}>{msg.avatar}</ThemedText>
+                  <ThemedText style={{ color: Colors[colorScheme].tint, fontWeight: 'bold' }}>{msg.sender_id === session.user.uid ? 'M' : 'U'}</ThemedText>
                 </View>
                 <View style={styles.itemInfo}>
                   <View style={styles.itemHeader}>
-                    <ThemedText type="defaultSemiBold" style={styles.userName}>{msg.user || msg.name}</ThemedText>
-                    <ThemedText style={styles.timeText}>{msg.time}</ThemedText>
+                    <ThemedText type="defaultSemiBold" style={styles.userName}>{msg.sender_id === session.user.uid ? 'Me' : 'User'}</ThemedText>
+                    <ThemedText style={styles.timeText}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</ThemedText>
                   </View>
                   <View style={styles.msgPreviewRow}>
-                    <ThemedText numberOfLines={1} style={[styles.msgText, msg.unread && { fontWeight: 'bold', color: Colors[colorScheme].text }]}>
-                      {msg.text}
+                    <ThemedText numberOfLines={1} style={[styles.msgText, !msg.is_read && msg.sender_id !== session.user.uid && { fontWeight: 'bold', color: Colors[colorScheme].text }]}>
+                      {msg.content}
                     </ThemedText>
-                    {msg.unread && <View style={[styles.unreadDot, { backgroundColor: Colors[colorScheme].tint }]} />}
+                    {!msg.is_read && msg.sender_id !== session.user.uid && <View style={[styles.unreadDot, { backgroundColor: Colors[colorScheme].tint }]} />}
                   </View>
                 </View>
               </TouchableOpacity>
-            ))}
+            )) : (
+                <View style={{ alignItems: 'center', marginTop: 50 }}>
+                    <ThemedText style={{ opacity: 0.5 }}>No messages yet</ThemedText>
+                </View>
+            )}
           </View>
         ) : (
           <View style={styles.listContainer}>
-            {NOTIFICATIONS.map(note => (
+            {notifications.length > 0 ? notifications.map(note => (
               <TouchableOpacity key={note.id} style={[styles.itemCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}>
-                <View style={[styles.iconCircle, { backgroundColor: note.color + '15' }]}>
-                  <note.icon size={22} color={note.color} />
+                <View style={[styles.iconCircle, { backgroundColor: Colors[colorScheme].tint + '15' }]}>
+                   <Bell size={22} color={Colors[colorScheme].tint} />
                 </View>
                 <View style={styles.itemInfo}>
                   <View style={styles.itemHeader}>
                     <ThemedText type="defaultSemiBold" style={styles.noteTitle}>{note.title}</ThemedText>
-                    <ThemedText style={styles.timeText}>{note.time}</ThemedText>
+                    <ThemedText style={styles.timeText}>{new Date(note.created_at).toLocaleDateString()}</ThemedText>
                   </View>
                   <ThemedText style={styles.noteBody}>{note.body}</ThemedText>
                 </View>
               </TouchableOpacity>
-            ))}
+            )) : (
+                <View style={{ alignItems: 'center', marginTop: 50 }}>
+                    <ThemedText style={{ opacity: 0.5 }}>No alerts yet</ThemedText>
+                </View>
+            )}
           </View>
         )}
       </ScrollView>

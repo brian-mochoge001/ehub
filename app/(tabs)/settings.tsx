@@ -7,12 +7,14 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSession, signOut } from '@/services/auth-client';
 import { useRouter } from 'expo-router';
+import { FeedbackModal } from '@/components/FeedbackModal';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const { data: session, isPending } = useSession();
   const router = useRouter();
   const [isDarkMode, setIsDarkMode] = React.useState(colorScheme === 'dark');
+  const [feedbackVisible, setFeedbackVisible] = React.useState(false);
 
   const handleLogout = async () => {
     try {
@@ -112,6 +114,7 @@ export default function SettingsScreen() {
         {/* Support */}
         <ThemedText style={styles.sectionTitle}>Support</ThemedText>
         <SettingItem icon={BadgeQuestionMark} label="Help Center" color="#9C27B0" />
+        <SettingItem icon={BadgeQuestionMark} label="Send Feedback" color="#4CAF50" onPress={() => setFeedbackVisible(true)} />
         <SettingItem icon={Info} label="About eHub" color="#607D8B" />
 
         {/* Auth Action */}
@@ -132,6 +135,8 @@ export default function SettingsScreen() {
 
         <ThemedText style={styles.versionText}>Version 1.0.0 (Build 123)</ThemedText>
       </ScrollView>
+
+      <FeedbackModal visible={feedbackVisible} onClose={() => setFeedbackVisible(false)} />
     </ThemedView>
   );
 }

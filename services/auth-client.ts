@@ -7,11 +7,14 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithCredential,
-  User
+  User,
+  initializeAuth,
+  getReactNativePersistence
 } from 'firebase/auth';
 import { useState, useEffect } from 'react';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import * as SecureStore from 'expo-secure-store';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -25,9 +28,36 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Custom storage for Firebase Auth using Expo SecureStore
+// SecureStore keys only allow alphanumeric characters, ".", "-", and "_"
+const sanitizeKey = (key: string) => {
+  if (typeof key !== 'string' || !key) return 'firebase_auth_key';
+  // Replace all non-alphanumeric characters with underscores for maximum compatibility
+  // and ensure the key is not too long (limit to 128 chars)
+  return key.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 128);
+};
+
+const secureStorePersistence = {
+  getItem: (key: string) => SecureStore.getItemAsync(sanitizeKey(key)),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(sanitizeKey(key), value),
+  removeItem: (key: string) => SecureStore.deleteItemAsync(sanitizeKey(key)),
+};
+
 // Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
+
+// Initialize Auth with SecureStore persistence
+// We use try-catch to avoid "auth/already-initialized" error during HMR
+let firebaseAuth;
+try {
+    firebaseAuth = initializeAuth(app, {
+        persistence: getReactNativePersistence(secureStorePersistence)
+    });
+} catch (error) {
+    firebaseAuth = getAuth(app);
+}
+
+export const auth = firebaseAuth;
 
 export const authClient = {
     signIn: {

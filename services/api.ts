@@ -1,86 +1,105 @@
-import { auth } from './auth-client';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
-
-const getHeaders = async () => {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  
-  const user = auth.currentUser;
-  if (user) {
-    const token = await user.getIdToken();
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  return headers;
-};
+import { apiClient } from './apiClient';
 
 export const api = {
-  getHubs: async () => {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/hubs`, { headers });
-    if (!response.ok) throw new Error('Failed to fetch hubs');
-    return response.json();
-  },
-  createHub: async (name: string, description: string) => {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/hubs`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ id: Math.random().toString(36).substr(2, 9), name, description }),
-    });
-    if (!response.ok) throw new Error('Failed to create hub');
-    return response.json();
-  },
-  getTasks: async () => {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/tasks`, { headers });
-    if (!response.ok) throw new Error('Failed to fetch tasks');
-    return response.json();
-  },
-  createTask: async (title: string, priority: number) => {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/tasks`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ title, priority }),
-    });
-    if (!response.ok) throw new Error('Failed to create task');
-    return response.json();
-  },
+  getHubs: () => apiClient.get('/hubs'),
+  createHub: (name: string, description: string) => apiClient.post('/hubs', { id: Math.random().toString(36).substr(2, 9), name, description }),
+  getTasks: () => apiClient.get('/tasks'),
+  createTask: (title: string, priority: number) => apiClient.post('/tasks', { title, priority }),
 
   // Driver / Taxi Methods
-  createDriver: async (id: string, name: string, status: string = 'online') => {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/drivers`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ id, name, status }),
-    });
-    if (!response.ok) throw new Error('Failed to create driver');
-    return response.json();
+  createDriver: (id: string, name: string, status: string = 'online') => apiClient.post('/drivers', { id, name, status }),
+  updateLocation: (longitude: number, latitude: number) => apiClient.post('/taxi/location', { longitude, latitude }),
+  updateStatus: (status: string) => apiClient.post('/taxi/status', { status }),
+  getDriverLocation: (id?: string) => apiClient.get(`/taxi/location${id ? `?driver_id=${id}` : ''}`),
+  getDriverTasks: () => apiClient.get('/taxi/driver/tasks'),
+  getRideRequests: () => apiClient.get('/taxi/requests'),
+  getDeliveryRequests: () => apiClient.get('/delivery/requests'),
+  acceptRideRequest: (tripId: string) => apiClient.post('/taxi/driver/accept', { trip_id: tripId }),
+  declineRideRequest: (tripId: string) => apiClient.post('/taxi/driver/decline', { trip_id: tripId }),
+  acceptDeliveryRequest: (orderId: string) => apiClient.post('/delivery/driver/accept', { order_id: orderId }),
+  declineDeliveryRequest: (orderId: string) => apiClient.post('/delivery/driver/decline', { order_id: orderId }),
+  getNearbyDrivers: (longitude: number, latitude: number, limit: number = 5) => apiClient.get(`/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}`),
+  getNearbyMotorbikeDrivers: (longitude: number, latitude: number, limit: number = 5) => apiClient.get(`/delivery/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}`),
+  createTaxiTrip: (tripData: any) => apiClient.post('/taxi/request', tripData),
+
+  // Business / Mall Methods
+  getBusinessProfile: (id: string) => apiClient.get(`/businesses/${id}`),
+  getBusinessProducts: (businessId: string, limit: number = 10, offset: number = 0) => apiClient.get(`/products?business_id=${businessId}&limit=${limit}&offset=${offset}`),
+  getProductDetails: (id: string) => apiClient.get(`/products/${id}`),
+  getBusinessServices: (businessId: string) => apiClient.get(`/services?business_id=${businessId}`),
+  getServicesByType: (type: string) => apiClient.get(`/services?type=${type}`),
+  getBusinessProperties: (businessId: string) => apiClient.get(`/properties?business_id=${businessId}`),
+
+  // Cart Methods
+  getCart: () => apiClient.get('/cart'),
+  addToCart: (businessId: string, itemId: string, itemType: string, quantity: number = 1) => apiClient.post('/cart', { business_id: businessId, item_id: itemId, item_type: itemType, quantity }),
+  removeFromCart: (id: string) => apiClient.delete(`/cart/${id}`),
+  updateCartItemQuantity: (id: string, quantity: number) => apiClient.put(`/cart/${id}`, { quantity }),
+  getOrdersByUserID: (userId: string) => apiClient.get('/orders'),
+  checkout: (shippingAddressId: string) => apiClient.post('/checkout', { shipping_address_id: shippingAddressId }),
+  getAddresses: () => apiClient.get('/addresses'),
+
+  // User Methods
+  getWalletBalance: () => apiClient.get('/wallet/balance'),
+  getMessages: () => apiClient.get('/messages'),
+  getNotifications: () => apiClient.get('/notifications'),
+  getBills: () => apiClient.get('/bills'),
+
+  // Specialized Service Methods
+  getBusRoutes: () => apiClient.get('/bus/routes'),
+  getMovies: (nowPlaying: boolean = true) => apiClient.get(`/cinema/movies/${nowPlaying ? 'now-playing' : 'coming-soon'}`),
+  getMovieShowtimes: (movieId: string) => apiClient.get(`/cinema/movies/${movieId}/showtimes`),
+  getFlights: () => apiClient.get('/flights'),
+  getJobs: () => apiClient.get('/jobs'),
+
+  // Specialized Item Methods
+  getGroceries: (businessId?: string) => apiClient.get(businessId ? `/groceries?business_id=${businessId}` : '/groceries'),
+  getLiquor: (businessId?: string) => apiClient.get(businessId ? `/liquor?business_id=${businessId}` : '/liquor'),
+  getPharmacy: (businessId?: string) => apiClient.get(businessId ? `/pharmacy?business_id=${businessId}` : '/pharmacy'),
+  getAllFoodItems: () => apiClient.get('/food-items'),
+  getFoodDeliveryEstimate: (payload: { latitude: number; longitude: number; radius?: number }) => apiClient.post('/food/delivery/estimate', payload),
+
+  // Single item endpoints
+  getFoodItem: (id: string) => apiClient.get(`/food-items/${id}`),
+
+  // Businesses listing (supports optional filters via query string)
+  getBusinesses: (params?: { type?: string; city?: string; owner_id?: string; limit?: number; offset?: number }) => {
+    let url = '/businesses';
+    if (params) {
+      const q = new URLSearchParams();
+      if (params.type) q.append('type', params.type);
+      if (params.city) q.append('city', params.city);
+      if (params.owner_id) q.append('owner_id', params.owner_id);
+      if (params.limit) q.append('limit', String(params.limit));
+      if (params.offset) q.append('offset', String(params.offset));
+      url += `?${q.toString()}`;
+    }
+    return apiClient.get(url);
   },
-  updateLocation: async (id: string, longitude: number, latitude: number) => {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/drivers/${id}/location`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ longitude, latitude }),
-    });
-    if (!response.ok) throw new Error('Failed to update location');
-    return response.json();
+
+  getBusinessesByOwnerId: (ownerId: string, limit: number = 20, offset: number = 0) =>
+    apiClient.get(`/businesses?owner_id=${ownerId}&limit=${limit}&offset=${offset}`),
+
+  // Mall / Generic Ecommerce
+  getFeaturedProducts: (limit: number = 10, offset: number = 0) => apiClient.get(`/featured-products?limit=${limit}&offset=${offset}`),
+  getFlashSaleProducts: (limit: number = 5, offset: number = 0) => apiClient.get(`/products?is_flash_sale=true&limit=${limit}&offset=${offset}`),
+  getCategories: () => apiClient.get('/categories'),
+  getProperties: (filters?: { city?: string, max_price?: number, min_rooms?: number }) => {
+    let url = '/properties';
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.city) params.append('city', filters.city);
+      if (filters.max_price) params.append('max_price', filters.max_price.toString());
+      if (filters.min_rooms) params.append('min_rooms', filters.min_rooms.toString());
+      url += '?' + params.toString();
+    }
+    return apiClient.get(url);
   },
-  getDriverLocation: async (id: string) => {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/drivers/${id}/location`, { headers });
-    if (!response.ok) throw new Error('Failed to fetch driver location');
-    return response.json();
-  },
-  getNearbyDrivers: async (longitude: number, latitude: number, limit: number = 5) => {
-    const headers = await getHeaders();
-    const response = await fetch(`${API_URL}/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}`, { headers });
-    if (!response.ok) throw new Error('Failed to fetch nearby drivers');
-    return response.json();
-  },
+  getC2CListings: () => apiClient.get('/c2c/listings'),
+  getReviewsByTarget: (targetId: string, targetType: string) => apiClient.get(`/reviews?target_id=${targetId}&target_type=${targetType}`),
+  getTours: () => apiClient.get('/tours'),
+  getGroceryDeliveryQuote: (data: any) => apiClient.post('/groceries/delivery/estimate', data),
+  getGroceryStores: (latitude: number, longitude: number, radius: number = 5000) => apiClient.get(`/grocery/stores?latitude=${latitude}&longitude=${longitude}&radius=${radius}`),
+  getProperty: (id: string) => apiClient.get(`/properties/${id}`),
+  bookProperty: (data: any) => apiClient.post('/properties/bookings', data),
 };

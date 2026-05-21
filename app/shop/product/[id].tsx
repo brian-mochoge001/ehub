@@ -1,59 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Dimensions, FlatList, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Dimensions, FlatList, NativeSyntheticEvent, NativeScrollEvent, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Heart, Share2, Star, ShoppingCart, ShieldCheck, Truck, RotateCcw } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { api } from '@/services/api';
 
 const { width } = Dimensions.get('window');
-
-const ALL_PRODUCTS: Record<string, any> = {
-  '1': { 
-    name: 'Wireless Earbuds', 
-    price: '$49.99', 
-    rating: 4.8, 
-    images: [
-      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80',
-      'https://images.unsplash.com/photo-1484704849700-f032a568e944?w=800&q=80',
-      'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&q=80',
-      'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=800&q=80',
-    ],
-    description: 'Experience true freedom with our latest wireless earbuds. Features noise cancellation, 24-hour battery life, and superior sound quality.' 
-  },
-  '2': { 
-    name: 'Smart Watch', 
-    price: '$129.99', 
-    rating: 4.5, 
-    images: [
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80',
-      'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=800&q=80',
-      'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=800&q=80',
-    ],
-    description: 'Stay connected and track your fitness with this sleek smart watch. Includes heart rate monitoring, GPS, and water resistance.' 
-  },
-  '3': { 
-    name: 'Premium Backpack', 
-    price: '$79.00', 
-    rating: 4.7, 
-    images: [
-      'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80',
-      'https://images.unsplash.com/photo-1581605405669-fcdf81165afa?w=800&q=80',
-    ],
-    description: 'A durable and stylish backpack for your daily commute or weekend adventures. Features multiple compartments and a padded laptop sleeve.' 
-  },
-  '4': { 
-    name: 'Coffee Maker', 
-    price: '$89.00', 
-    rating: 4.6, 
-    images: [
-      'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?w=800&q=80',
-      'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&q=80',
-    ],
-    description: 'Brew the perfect cup of coffee every morning with our easy-to-use coffee maker. Programmable settings and high-quality filter.' 
-  },
-};
 
 export default function ProductDetailsScreen() {
   const router = useRouter();
@@ -61,23 +16,42 @@ export default function ProductDetailsScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = Colors[colorScheme].tint;
 
-  const product = ALL_PRODUCTS[typeof id === 'string' ? id : '1'] || ALL_PRODUCTS['1'];
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
-  // Autoplay Logic
   useEffect(() => {
-    const timer = setInterval(() => {
-      if (product.images.length > 1) {
-        let nextIndex = activeIndex + 1;
-        if (nextIndex >= product.images.length) nextIndex = 0;
-        setActiveIndex(nextIndex);
-        flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      }
-    }, 4000);
+    if (id) {
+      fetchProduct();
+    }
+  }, [id]);
 
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getProductDetails(id as string);
+      if (!data.images) {
+        data.images = [data.image_url || data.image || 'https://via.placeholder.com/800'];
+      }
+      setProduct(data);
+    } catch (err) {
+      console.error('Failed to fetch product:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!product || !product.images || product.images.length <= 1) return;
+    const timer = setInterval(() => {
+      let nextIndex = activeIndex + 1;
+      if (nextIndex >= product.images.length) nextIndex = 0;
+      setActiveIndex(nextIndex);
+      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+    }, 4000);
     return () => clearInterval(timer);
-  }, [activeIndex, product.images.length]);
+  }, [activeIndex, product?.images?.length]);
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
@@ -91,6 +65,25 @@ export default function ProductDetailsScreen() {
     setActiveIndex(index);
     flatListRef.current?.scrollToIndex({ index, animated: true });
   };
+
+  if (loading) {
+    return (
+      <ThemedView style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={activeColor} />
+      </ThemedView>
+    );
+  }
+
+  if (!product) {
+    return (
+      <ThemedView style={styles.centerContainer}>
+        <ThemedText>Product not found</ThemedText>
+        <TouchableOpacity style={styles.retryBtn} onPress={fetchProduct}>
+           <ThemedText style={{ color: '#fff' }}>Retry</ThemedText>
+        </TouchableOpacity>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -161,22 +154,27 @@ export default function ProductDetailsScreen() {
         <View style={styles.infoContainer}>
           <View style={styles.titleRow}>
             <ThemedText type="title" style={styles.productName}>{product.name}</ThemedText>
-            <ThemedText type="subtitle" style={[styles.productPrice, { color: activeColor }]}>{product.price}</ThemedText>
+            <ThemedText type="subtitle" style={[styles.productPrice, { color: activeColor }]}>{product.currency} {product.price}</ThemedText>
           </View>
 
-          <View style={styles.ratingRow}>
+          <TouchableOpacity style={styles.merchantContainer} onPress={() => router.push(`/shop/merchant/${product.business_id}` as any)}>
+            <ThemedText style={styles.merchantLabel}>Sold by </ThemedText>
+            <ThemedText style={[styles.merchantName, { color: activeColor }]}>{product.business_name || 'Verified Vendor'}</ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.ratingRow} onPress={() => router.push(`/reviews/${id}` as any)}>
             <View style={styles.stars}>
               {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} size={16} color="#FFD700" fill={s <= Math.floor(product.rating) ? "#FFD700" : "transparent"} />
+                <Star key={s} size={16} color="#FFD700" fill={s <= Math.floor(product.rating || 0) ? "#FFD700" : "transparent"} />
               ))}
             </View>
-            <ThemedText style={styles.ratingText}>{product.rating} (120 reviews)</ThemedText>
-          </View>
+            <ThemedText style={styles.ratingText}>{product.rating || '0.0'} ({product.review_count || 0} reviews)</ThemedText>
+          </TouchableOpacity>
 
           <View style={styles.divider} />
 
           <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Description</ThemedText>
-          <ThemedText style={styles.descriptionText}>{product.description}</ThemedText>
+          <ThemedText style={styles.descriptionText}>{product.description || 'No description available.'}</ThemedText>
 
           <View style={styles.divider} />
 
@@ -192,7 +190,7 @@ export default function ProductDetailsScreen() {
               <View style={[styles.benefitIcon, { backgroundColor: '#4CAF5015' }]}>
                 <ShieldCheck size={20} color="#4CAF50" />
               </View>
-              <ThemedText style={styles.benefitLabel}>2 Year Warranty</ThemedText>
+              <ThemedText style={styles.benefitLabel}>Authentic</ThemedText>
             </View>
             <View style={styles.benefitItem}>
               <View style={[styles.benefitIcon, { backgroundColor: '#FF634715' }]}>
@@ -206,7 +204,7 @@ export default function ProductDetailsScreen() {
 
       {/* Bottom Bar */}
       <View style={[styles.bottomBar, { borderTopColor: 'rgba(128,128,128,0.1)', backgroundColor: colorScheme === 'light' ? '#fff' : '#151718' }]}>
-        <TouchableOpacity style={[styles.cartBtn, { borderColor: activeColor }]}>
+        <TouchableOpacity style={[styles.cartBtn, { borderColor: activeColor }]} onPress={() => router.push('/cart')}>
           <ShoppingCart size={24} color={activeColor} />
         </TouchableOpacity>
         <TouchableOpacity 
@@ -222,6 +220,8 @@ export default function ProductDetailsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  retryBtn: { marginTop: 20, backgroundColor: '#0a7ea4', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
   header: { position: 'absolute', top: 50, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, zIndex: 10 },
   iconButton: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: 'rgba(255,255,255,0.6)', justifyContent: 'center', alignItems: 'center', elevation: 2 },
   headerRight: { flexDirection: 'row', gap: 10 },
@@ -239,6 +239,9 @@ const styles = StyleSheet.create({
   productName: { flex: 1, fontSize: 24, marginRight: 15 },
   productPrice: { fontSize: 22 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  merchantContainer: { flexDirection: 'row', marginBottom: 15 },
+  merchantLabel: { fontSize: 14, opacity: 0.7 },
+  merchantName: { fontSize: 14, fontWeight: 'bold' },
   stars: { flexDirection: 'row', marginRight: 10 },
   ratingText: { fontSize: 14, opacity: 0.5 },
   divider: { height: 1, backgroundColor: 'rgba(128,128,128,0.1)', marginVertical: 20 },

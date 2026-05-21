@@ -1,23 +1,45 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Clock, ShoppingCart, Plus, Shirt, WashingMachine, Waves } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-
-const LAUNDRY_SERVICES = [
-  { id: '1', name: 'Wash & Fold', price: '$2.50/kg', icon: WashingMachine, color: '#2196F3' },
-  { id: '2', name: 'Dry Cleaning', price: '$5.00/item', icon: Shirt, color: '#9C27B0' },
-  { id: '3', name: 'Ironing Only', price: '$1.50/item', icon: Waves, color: '#4CAF50' },
-];
+import { api } from '@/services/api';
 
 export default function LaundryScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#03A9F4'; // Laundry blue
   const isDark = colorScheme === 'dark';
+
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchLaundryServices();
+  }, []);
+
+  const fetchLaundryServices = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getServicesByType('laundry');
+        setServices(data || []);
+    } catch (err) {
+        console.error('Failed to fetch laundry services:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -27,7 +49,7 @@ export default function LaundryScreen() {
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
         <ThemedText type="subtitle">eLaundry</ThemedText>
-        <TouchableOpacity style={styles.cartButton}>
+        <TouchableOpacity style={styles.cartButton} onPress={() => router.push('/cart')}>
           <ShoppingCart size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
       </View>
@@ -53,18 +75,25 @@ export default function LaundryScreen() {
           <ThemedText type="subtitle">Our Services</ThemedText>
         </View>
         <View style={styles.servicesGrid}>
-          {LAUNDRY_SERVICES.map(service => (
+          {services.length > 0 ? services.map(service => (
             <TouchableOpacity key={service.id} style={[styles.serviceCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-              <View style={[styles.iconCircle, { backgroundColor: service.color + '15' }]}>
-                <service.icon size={28} color={service.color} />
+              <View style={[styles.iconCircle, { backgroundColor: activeColor + '15' }]}>
+                <WashingMachine size={28} color={activeColor} />
               </View>
               <ThemedText type="defaultSemiBold" style={styles.serviceName}>{service.name}</ThemedText>
-              <ThemedText style={styles.servicePrice}>{service.price}</ThemedText>
-              <TouchableOpacity style={[styles.addBtn, { backgroundColor: activeColor }]}>
+              <ThemedText style={styles.servicePrice}>{service.currency} {service.base_price}</ThemedText>
+              <TouchableOpacity 
+                style={[styles.addBtn, { backgroundColor: activeColor }]}
+                onPress={() => api.addToCart(service.business_id, service.id, 'service', 1)}
+              >
                 <Plus size={18} color="#fff" />
               </TouchableOpacity>
             </TouchableOpacity>
-          ))}
+          )) : (
+              <View style={{ width: '100%', alignItems: 'center', marginTop: 20 }}>
+                  <ThemedText style={{ opacity: 0.5 }}>No services available</ThemedText>
+              </View>
+          )}
         </View>
 
         {/* Benefits */}

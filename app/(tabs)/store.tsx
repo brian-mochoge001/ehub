@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Pressable, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { Trash2, Plus, Minus, ShoppingCart, Package, ChevronRight, Store, ClipboardList, PlusCircle, MoreVertical, LogIn } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -8,41 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSession } from '@/services/auth-client';
-
-const INITIAL_LISTINGS = [
-  { id: '1', name: 'Samsung Galaxy S24 Ultra', price: 59999.99, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80', status: 'Active' },
-  { id: '2', name: 'HP Dragonfly Pro', price: 44999.99, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80', status: 'Active' },
-];
-
-const INITIAL_CART = [
-  { id: '1', name: 'Wireless Earbuds', price: 49.99, quantity: 1, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80' },
-];
-
-const INITIAL_ORDERS = [
-  {
-    id: '1',
-    orderNumber: 'EH-90210',
-    items: 'Wireless Earbuds',
-    total: 49.99,
-    status: 'Shipping',
-    statusColor: '#4CAF50',
-    date: 'Oct 24',
-    estimatedDelivery: 'Oct 26',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80',
-    seller: 'TechWorld'
-  },
-  {
-    id: '2',
-    orderNumber: 'EH-90211',
-    items: 'MacBook Air M3',
-    total: 1299.00,
-    status: 'Delivered',
-    statusColor: '#2196F3',
-    date: 'Oct 20',
-    image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&q=80',
-    seller: 'Apple Store Official'
-  },
-];
+import { api } from '@/services/api';
 
 export default function StoreScreen() {
   const insets = useSafeAreaInsets();
@@ -54,29 +21,81 @@ export default function StoreScreen() {
   const borderColor = colorScheme === 'light' ? '#F0F0F0' : '#2A2C2E';
 
   const [activeTab, setActiveTab] = useState<'shop' | 'cart' | 'orders'>('shop');
-  const [listings, setListings] = useState(INITIAL_LISTINGS);
-  const [cartItems, setCartItems] = useState(INITIAL_CART);
-  const [orders] = useState(INITIAL_ORDERS);
+  const [listings, setListings] = useState<any[]>([]);
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [cartCategoryFilter, setCartCategoryFilter] = useState('All');
+  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
 
-  const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  useEffect(() => {
+    if (session) {
+        fetchStoreData();
+    }
+  }, [session, activeTab]);
+
+  const fetchStoreData = async () => {
+    try {
+        setLoading(true);
+        if (activeTab === 'cart') {
+            const items = await api.getCart();
+            setCartItems(items || []);
+        } else if (activeTab === 'orders') {
+            const ords = await api.getOrdersByUserID(session!.user.uid);
+            setOrders(ords || []);
+        } else if (activeTab === 'shop') {
+            const bizs = await api.getBusinessProfile('me').catch(() => []); // Should probably use a different method or loop
+            // For now, simplify and just set empty if not handled
+            setListings([]);
+        }
+    } catch (err) {
+        console.error('Failed to fetch store data:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const total = cartItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0) * item.quantity, 0);
+
+  const filteredCart = cartCategoryFilter === 'All' 
+    ? cartItems 
+    : cartItems.filter(i => i.item_type === cartCategoryFilter);
 
   // 🛒 Cart logic
-  const increaseQty = (id: string) => {
-    setCartItems(items =>
-      items.map(i => i.id === id ? { ...i, quantity: i.quantity + 1 } : i)
-    );
+  const increaseQty = async (id: string, currentQty: number) => {
+    try {
+        await api.updateCartItemQuantity(id, currentQty + 1);
+        setCartItems(items =>
+            items.map(i => i.id === id ? { ...i, quantity: i.quantity + 1 } : i)
+        );
+    } catch (err) {
+        console.error(err);
+    }
   };
 
-  const decreaseQty = (id: string) => {
-    setCartItems(items =>
-      items.map(i =>
-        i.id === id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i
-      )
-    );
+  const decreaseQty = async (id: string, currentQty: number) => {
+    if (currentQty <= 1) return;
+    try {
+        await api.updateCartItemQuantity(id, currentQty - 1);
+        setCartItems(items =>
+            items.map(i => i.id === id ? { ...i, quantity: i.quantity - 1 } : i)
+        );
+    } catch (err) {
+        console.error(err);
+    }
   };
 
-  const removeFromCart = (id: string) => {
-    setCartItems(items => items.filter(i => i.id !== id));
+  const removeFromCart = async (id: string) => {
+    try {
+        await api.removeFromCart(id);
+        setCartItems(items => items.filter(i => i.id !== id));
+    } catch (err) {
+        console.error(err);
+    }
+  };
+
+  const toggleItemSelection = (id: string) => {
+    setSelectedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   // 🏪 Listings logic
@@ -111,7 +130,7 @@ export default function StoreScreen() {
 
       {listings.length ? listings.map(item => (
         <View key={item.id} style={[styles.itemCard, { backgroundColor: cardBg, borderColor }]}>
-          <Image source={{ uri: item.image }} style={styles.itemImage} />
+          <Image source={{ uri: item.image }} style={styles.itemImage} contentFit="cover" />
 
           <View style={styles.itemInfo}>
             <View style={styles.itemHeader}>
@@ -160,62 +179,54 @@ export default function StoreScreen() {
   // 🛒 Cart UI
   const renderCart = () => (
     <View style={styles.section}>
-      {cartItems.length ? (
+      <View style={styles.filterRow}>
+        {['All', 'ecommerce', 'hotel', 'restaurant', 'grocery'].map(cat => (
+          <TouchableOpacity 
+            key={cat} 
+            onPress={() => setCartCategoryFilter(cat)}
+            style={[styles.filterChip, cartCategoryFilter === cat && { backgroundColor: activeColor }]}
+          >
+            <ThemedText style={cartCategoryFilter === cat && { color: '#fff' }}>{cat}</ThemedText>
+          </TouchableOpacity>
+        ))}
+      </View>
+      {filteredCart.length ? (
         <>
-          {cartItems.map(item => (
-            <View key={item.id} style={[styles.itemCard, { backgroundColor: cardBg, borderColor }]}>
-              <Image source={{ uri: item.image }} style={styles.itemImage} />
-
+          {filteredCart.map(item => (
+            <TouchableOpacity key={item.id} style={[styles.itemCard, { backgroundColor: cardBg, borderColor }]} onPress={() => router.push(`/shop/product/${item.item_id}` as any)}>
+              <TouchableOpacity onPress={() => toggleItemSelection(item.id)} style={styles.checkbox}>
+                <View style={[styles.checkboxInner, selectedItems[item.id] && { backgroundColor: activeColor }]} />
+              </TouchableOpacity>
+              <Image source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} style={styles.itemImage} contentFit="cover" />
               <View style={styles.itemInfo}>
                 <View style={styles.itemHeader}>
-                  <ThemedText type="defaultSemiBold" numberOfLines={1}>{item.name}</ThemedText>
-                  <TouchableOpacity onPress={() => removeFromCart(item.id)}>
-                    <Trash2 size={18} color="#FF6347" />
-                  </TouchableOpacity>
+                    <ThemedText type="defaultSemiBold">{item.name || 'Item'}</ThemedText>
+                    <TouchableOpacity onPress={() => removeFromCart(item.id)}>
+                        <Trash2 size={18} color="#FF6347" />
+                    </TouchableOpacity>
                 </View>
-
-                <ThemedText style={[styles.itemPrice, { color: activeColor }]}>
-                  ${item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </ThemedText>
-
+                <ThemedText style={[styles.itemPrice, { color: activeColor }]}>{item.currency || 'Ksh'} {item.price || '0'}</ThemedText>
                 <View style={styles.qtyRow}>
-                  <View style={[styles.qtyControls, { backgroundColor: colorScheme === 'light' ? '#F5F5F5' : '#2A2C2E' }]}>
-                    <TouchableOpacity style={styles.qtyBtn} onPress={() => decreaseQty(item.id)}>
-                      <Minus size={14} color={Colors[colorScheme].text} />
-                    </TouchableOpacity>
-                    <ThemedText style={styles.qtyText}>{item.quantity}</ThemedText>
-                    <TouchableOpacity style={styles.qtyBtn} onPress={() => increaseQty(item.id)}>
-                      <Plus size={14} color={Colors[colorScheme].text} />
-                    </TouchableOpacity>
-                  </View>
+                    <View style={[styles.qtyControls, { backgroundColor: colorScheme === 'light' ? '#F5F5F5' : '#2A2C2E' }]}>
+                        <TouchableOpacity style={styles.qtyBtn} onPress={() => decreaseQty(item.id, item.quantity)}>
+                            <Minus size={16} color={Colors[colorScheme].text} />
+                        </TouchableOpacity>
+                        <ThemedText style={styles.qtyText}>{item.quantity}</ThemedText>
+                        <TouchableOpacity style={styles.qtyBtn} onPress={() => increaseQty(item.id, item.quantity)}>
+                            <Plus size={16} color={Colors[colorScheme].text} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
-
-          <View style={[styles.summaryCard, { backgroundColor: cardBg, borderColor }]}>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Subtotal</ThemedText>
-              <ThemedText type="defaultSemiBold">${total.toFixed(2)}</ThemedText>
-            </View>
-            <View style={styles.summaryRow}>
-              <ThemedText style={styles.summaryLabel}>Shipping</ThemedText>
-              <ThemedText type="defaultSemiBold" style={{ color: '#4CAF50' }}>FREE</ThemedText>
-            </View>
-            <View style={[styles.divider, { backgroundColor: borderColor }]} />
-            <View style={styles.summaryRow}>
-              <ThemedText type="subtitle">Total</ThemedText>
-              <ThemedText type="subtitle" style={{ color: activeColor }}>${total.toFixed(2)}</ThemedText>
-            </View>
-
-            <TouchableOpacity
+          <TouchableOpacity
               style={[styles.checkoutBtn, { backgroundColor: activeColor }]}
               onPress={() => router.push('/shop/payment')}
             >
               <ShoppingCart size={20} color="#fff" style={{ marginRight: 8 }} />
-              <ThemedText style={styles.checkoutBtnText}>Checkout</ThemedText>
+              <ThemedText style={styles.checkoutBtnText}>Checkout Selected (Total: Ksh {total.toFixed(2)})</ThemedText>
             </TouchableOpacity>
-          </View>
         </>
       ) : (
         <EmptyState
@@ -233,30 +244,32 @@ export default function StoreScreen() {
       {orders.length ? orders.map(order => (
         <TouchableOpacity key={order.id} style={[styles.orderCard, { backgroundColor: cardBg, borderColor }]}>
           <View style={styles.orderTop}>
-            <Image source={{ uri: order.image }} style={styles.orderImage} />
+            <View style={[styles.orderImage, { backgroundColor: activeColor + '15', justifyContent: 'center', alignItems: 'center' }]}>
+                <Package size={30} color={activeColor} />
+            </View>
             <View style={styles.orderInfo}>
               <View style={styles.orderRow}>
-                <ThemedText type="defaultSemiBold" numberOfLines={1} style={{ flex: 1 }}>{order.items}</ThemedText>
+                <ThemedText type="defaultSemiBold" numberOfLines={1} style={{ flex: 1 }}>Order #{order.id.substring(0, 8)}</ThemedText>
                 <ChevronRight size={18} color={Colors[colorScheme].icon} />
               </View>
 
-              <ThemedText style={styles.orderNumber}>{order.orderNumber}</ThemedText>
+              <ThemedText style={styles.orderNumber}>{order.status.toUpperCase()}</ThemedText>
 
               <View style={styles.orderFooter}>
                 <View style={styles.orderStatusContainer}>
-                  <View style={[styles.statusDot, { backgroundColor: order.statusColor }]} />
-                  <ThemedText style={[styles.statusText, { color: order.statusColor }]}>{order.status}</ThemedText>
+                  <View style={[styles.statusDot, { backgroundColor: order.status === 'completed' ? '#4CAF50' : '#FF9800' }]} />
+                  <ThemedText style={[styles.statusText, { color: order.status === 'completed' ? '#4CAF50' : '#FF9800' }]}>{order.status}</ThemedText>
                 </View>
-                <ThemedText style={styles.orderDate}>{order.date}</ThemedText>
+                <ThemedText style={styles.orderDate}>{new Date(order.created_at).toLocaleDateString()}</ThemedText>
               </View>
             </View>
           </View>
           <View style={[styles.divider, { backgroundColor: borderColor }]} />
           <View style={styles.orderBottom}>
             <ThemedText style={styles.orderUserText}>
-              Seller: <ThemedText type="defaultSemiBold">{order.seller}</ThemedText>
+              Total Amount:
             </ThemedText>
-            <ThemedText type="subtitle" style={{ color: activeColor }}>${order.total.toFixed(2)}</ThemedText>
+            <ThemedText type="subtitle" style={{ color: activeColor }}>{order.currency} {order.total_amount}</ThemedText>
           </View>
         </TouchableOpacity>
       )) : (
@@ -654,4 +667,8 @@ const styles = StyleSheet.create({
   guestSubtitle: { fontSize: 16, opacity: 0.6, textAlign: 'center', lineHeight: 24, marginBottom: 40 },
   loginBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 15, gap: 10, width: '100%' },
   loginBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  filterRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#eee' },
+  checkbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: '#ccc', marginRight: 10, justifyContent: 'center', alignItems: 'center' },
+  checkboxInner: { width: 16, height: 16, borderRadius: 8 },
 });

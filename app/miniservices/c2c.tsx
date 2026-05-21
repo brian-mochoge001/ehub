@@ -1,11 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Search, PlusCircle, Heart, MessageCircle, MapPin, Camera, Tag } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
+import { api } from '@/services/api';
 
 const C2C_CATEGORIES = [
   { id: '1', name: 'Fashion', icon: '👕', color: '#FCE4EC' },
@@ -14,16 +15,38 @@ const C2C_CATEGORIES = [
   { id: '4', name: 'Vehicles', icon: '🚗', color: '#FFF3E0' },
 ];
 
-const FEATURED_ITEMS = [
-  { id: '1', title: 'Vintage Camera', price: '$120', location: 'Nairobi', time: '2h ago', image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400' },
-  { id: '2', title: 'Mountain Bike', price: '$250', location: 'Kisumu', time: '5h ago', image: 'https://images.unsplash.com/photo-1532298229144-0ec0c57515c7?w=400' },
-];
-
 export default function C2CScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#E91E63'; // Marketplace pink
   const isDark = colorScheme === 'dark';
+
+  const [listings, setListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchListings();
+  }, []);
+
+  const fetchListings = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getC2CListings();
+        setListings(data || []);
+    } catch (err) {
+        console.error('Failed to fetch C2C listings:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -80,22 +103,26 @@ export default function C2CScreen() {
         </View>
 
         <View style={styles.itemsGrid}>
-          {FEATURED_ITEMS.map(item => (
+          {listings.length > 0 ? listings.map(item => (
             <TouchableOpacity key={item.id} style={[styles.itemCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-              <Image source={{ uri: item.image }} style={styles.itemImage} />
+              <Image source={{ uri: item.image_urls?.[0] || 'https://via.placeholder.com/400' }} style={styles.itemImage} />
               <TouchableOpacity style={styles.heartBtn}>
                 <Heart size={16} color="#fff" />
               </TouchableOpacity>
               <View style={styles.itemInfo}>
-                <ThemedText type="defaultSemiBold" style={styles.itemPrice}>{item.price}</ThemedText>
+                <ThemedText type="defaultSemiBold" style={styles.itemPrice}>{item.currency} {item.price}</ThemedText>
                 <ThemedText numberOfLines={1} style={styles.itemTitle}>{item.title}</ThemedText>
                 <View style={styles.itemLocation}>
                   <MapPin size={10} color="#888" />
-                  <ThemedText style={styles.locationText}>{item.location} • {item.time}</ThemedText>
+                  <ThemedText style={styles.locationText}>{item.location || 'Unknown'} • {new Date(item.created_at).toLocaleDateString()}</ThemedText>
                 </View>
               </View>
             </TouchableOpacity>
-          ))}
+          )) : (
+              <View style={{ width: '100%', alignItems: 'center', marginTop: 20 }}>
+                  <ThemedText style={{ opacity: 0.5 }}>No listings available</ThemedText>
+              </View>
+          )}
         </View>
 
         {/* Safety Banner */}

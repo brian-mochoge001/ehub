@@ -1,11 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Search, Wrench, Laptop, Smartphone, Tv, Home, History, ChevronRight, Star, Clock } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
+import { api } from '@/services/api';
 
 const REPAIR_CATEGORIES = [
   { id: '1', name: 'Mobile', icon: Smartphone, color: '#2196F3' },
@@ -14,16 +15,38 @@ const REPAIR_CATEGORIES = [
   { id: '4', name: 'Home Appl.', icon: Home, color: '#FF9800' },
 ];
 
-const EXPERT_REPAIRERS = [
-  { id: '1', name: 'Tech Fix Solutions', specialty: 'Mobile & Laptop', rating: 4.9, reviews: 120, image: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=400' },
-  { id: '2', name: 'Home Care Pro', specialty: 'Appliances', rating: 4.7, reviews: 85, image: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400' },
-];
-
 export default function RepairScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#FF9800'; // Repair orange
   const isDark = colorScheme === 'dark';
+
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRepairServices();
+  }, []);
+
+  const fetchRepairServices = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getServicesByType('repair');
+        setServices(data || []);
+    } catch (err) {
+        console.error('Failed to fetch repair services:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -78,24 +101,29 @@ export default function RepairScreen() {
 
         {/* Experts */}
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Certified Experts</ThemedText>
+          <ThemedText type="subtitle">Available Repair Services</ThemedText>
           <TouchableOpacity><ThemedText style={{ color: activeColor }}>View All</ThemedText></TouchableOpacity>
         </View>
 
-        {EXPERT_REPAIRERS.map(repairer => (
-          <TouchableOpacity key={repairer.id} style={[styles.repairerCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-            <Image source={{ uri: repairer.image }} style={styles.repairerImage} />
+        {services.length > 0 ? services.map(service => (
+          <TouchableOpacity key={service.id} style={[styles.repairerCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
+            <View style={[styles.repairerImage, { backgroundColor: activeColor + '15', justifyContent: 'center', alignItems: 'center' }]}>
+                <Wrench size={30} color={activeColor} />
+            </View>
             <View style={styles.repairerInfo}>
-              <ThemedText type="defaultSemiBold">{repairer.name}</ThemedText>
-              <ThemedText style={styles.specialtyText}>{repairer.specialty}</ThemedText>
+              <ThemedText type="defaultSemiBold">{service.name}</ThemedText>
+              <ThemedText style={styles.specialtyText}>{service.service_type.toUpperCase()}</ThemedText>
               <View style={styles.ratingRow}>
-                <Star size={14} color="#FFD700" fill="#FFD700" />
-                <ThemedText style={styles.ratingText}>{repairer.rating} ({repairer.reviews} reviews)</ThemedText>
+                <ThemedText style={[styles.ratingText, { marginLeft: 0, fontWeight: 'bold', color: activeColor }]}>{service.currency} {service.base_price}</ThemedText>
               </View>
             </View>
             <ChevronRight size={20} color="#888" />
           </TouchableOpacity>
-        ))}
+        )) : (
+            <View style={{ alignItems: 'center', marginTop: 20 }}>
+                <ThemedText style={{ opacity: 0.5 }}>No services available</ThemedText>
+            </View>
+        )}
 
         {/* Benefits */}
         <View style={styles.benefitsRow}>

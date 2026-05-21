@@ -55,6 +55,7 @@ export default function RootLayout() {
         }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="miniservices/taxi" />
+        <Stack.Screen name="miniservices/driver" />
         <Stack.Screen name="miniservices/food" />
 
         <Stack.Screen name="miniservices/ehost" />
@@ -78,6 +79,8 @@ export default function RootLayout() {
         <Stack.Screen name="shop/category/[id]" />
         <Stack.Screen name="shop/product/[id]" />
         <Stack.Screen name="shop/payment" />
+        <Stack.Screen name="cart/index" />
+        <Stack.Screen name="orders/index" />
         <Stack.Screen name="search" />
         <Stack.Screen name="modal" options={{ presentation: 'modal', animation: 'slide_from_bottom', title: 'Modal', headerShown: true }} />
       </Stack>

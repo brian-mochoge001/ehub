@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { StyleSheet, ScrollView, FlatList, View, Image, TouchableOpacity } from 'react-native';
-import { Search, Bell, Star, Wallet, CreditCard, Send, Plus, Car, Utensils, LayoutGrid, Smartphone, Shirt, House, Footprints, Dumbbell, MapPinHouse } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, ScrollView, FlatList, View, TouchableOpacity, Alert } from 'react-native';
+import { Image } from 'expo-image';
+import { Search, Bell, Star, Wallet, CreditCard, Send, Plus, LayoutGrid, Smartphone, Shirt, House, Footprints, Dumbbell } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -8,19 +9,8 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 import { ProductSkeleton } from '@/components/Skeleton';
 import { useSession } from '@/services/auth-client';
-
-const MINISERVICES = [
-  { id: 'etaxi', name: 'eTaxi', icon: Car, color: '#FFD700', route: '/miniservices/taxi' },
-  { id: 'efood', name: 'eFood', icon: Utensils, color: '#FF6347', route: '/miniservices/food' },
-  { id: 'ehost', name: 'eHost', icon: MapPinHouse, color: '#4169E1', route: '/miniservices/ehost' },
-  { id: 'more', name: 'More', icon: LayoutGrid, color: '#708090', route: '/services' },
-];
-
-const FLASH_SALES = [
-  { id: '1', name: 'MacBook Pro M3', price: '180,000', discount: '15% OFF', image: 'https://p.turbosquid.com/ts-thumb/Er/pVXRH9/f5/render9/jpg/1698836482/600x600/fit_q87/884035449414a1d9d55583f603f6eeba72f2b135/render9.jpg' },
-  { id: '2', name: 'iPhone 15 Pro', price: '119,999', discount: '10% OFF', image: 'https://alephksa.com/cdn/shop/files/iPhone_15_Pro_Natural_Titanium_PDP_Image_Position-1__en-ME.jpg?v=1694758467&width=1445' },
-  { id: '3', name: 'Sony WH-1000XM5', price: '25,999', discount: '20% OFF', image: 'https://fortresselectronics.co.ke/wp-content/uploads/2024/07/SONY-WH-1000XM5-WIRELESS-NOISE-CANCELING-HEADPHONES.jpg' },
-];
+import { api } from '@/services/api';
+import { ShortcutsCarousel } from '@/components/ShortcutsCarousel';
 
 const CATEGORIES = [
   { id: '1', name: 'Electronics', icon: Smartphone },
@@ -31,42 +21,87 @@ const CATEGORIES = [
   { id: '6', name: 'Beauty', icon: Star },
 ];
 
-const PRODUCTS = [
-  { id: '1', name: 'Wireless Earbuds', price: '2,499.99', rating: 4.8, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80' },
-  { id: '2', name: 'Smart Watch', price: '12,999.99', rating: 4.5, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80' },
-  { id: '3', name: 'Premium Backpack', price: '1,199.00', rating: 4.7, image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80' },
-  { id: '4', name: 'Coffee Maker', price: '19,999.00', rating: 4.6, image: 'https://www.ramtons.com/media/catalog/product/r/m/rm193_1_.png' },
-  { id: '5', name: 'Gaming Mouse', price: '1,499.99', rating: 4.9, image: 'https://images-na.ssl-images-amazon.com/images/I/61AcT0ZuO3L._UL500_.jpg' },
-  { id: '6', name: 'Yoga Mat', price: '1,299.00', rating: 4.7, image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500&q=80' },
-];
-
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const router = useRouter();
   const { data: session } = useSession();
 
-  // Infinite Scroll State
-  const [displayProducts, setDisplayProducts] = useState(PRODUCTS);
+  // Data State
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [flashSales, setFlashSales] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [wallet, setWallet] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
-  const loadMore = () => {
-    if (isLoadingMore) return;
+  const PAGE_SIZE = 10;
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      const [featured, flash, cats, walletData] = await Promise.all([
+        api.getFeaturedProducts(PAGE_SIZE, 0),
+        api.getFlashSaleProducts(),
+        api.getCategories(),
+        api.getWalletBalance().catch(() => null)
+      ]);
+      setFeaturedProducts(featured);
+      setFlashSales(flash);
+      setCategories(cats);
+      setWallet(walletData);
+      
+      if (featured.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
+      setPage(1);
+    } catch (err) {
+      console.error('Failed to fetch home data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    
     setIsLoadingMore(true);
-    setTimeout(() => {
-      const moreProducts = PRODUCTS.map(p => ({
-        ...p,
-        id: Math.random().toString(36).substr(2, 9)
-      }));
-      setDisplayProducts(prev => [...prev, ...moreProducts]);
-      setIsLoadingMore(false);
-    }, 1500);
+    try {
+        const offset = page * PAGE_SIZE;
+        const more = await api.getFeaturedProducts(PAGE_SIZE, offset);
+        
+        if (more.length === 0) {
+            setHasMore(false);
+        } else {
+            // Prevent duplicates just in case
+            setFeaturedProducts(prev => {
+                const existingIds = new Set(prev.map(p => p.id));
+                const uniqueMore = more.filter((p: any) => !existingIds.has(p.id));
+                return [...prev, ...uniqueMore];
+            });
+            setPage(prev => prev + 1);
+            
+            if (more.length < PAGE_SIZE) {
+                setHasMore(false);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load more products:', err);
+    } finally {
+        setIsLoadingMore(false);
+    }
   };
 
   const renderHeader = () => (
     <View>
       <View style={styles.header}>
         <View>
-          <ThemedText style={styles.welcomeText}>Hello, {session?.user.name || 'Guest'}</ThemedText>
+          <ThemedText style={styles.welcomeText}>Hello, {session?.user.displayName || 'Guest'}</ThemedText>
           <ThemedText type="title">eHub Mall</ThemedText>
         </View>
         <TouchableOpacity style={styles.iconButton}>
@@ -79,7 +114,7 @@ export default function HomeScreen() {
         <View style={styles.walletHeader}>
           <View>
             <ThemedText style={styles.walletLabel}>eHub Wallet</ThemedText>
-            <ThemedText style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>Ksh <ThemedText style={styles.walletBalance}>12,250.50</ThemedText></ThemedText>
+            <ThemedText style={{ fontSize: 16, fontWeight: 'bold', color: '#fff' }}>Ksh <ThemedText style={styles.walletBalance}>{wallet?.balance || '0.00'}</ThemedText></ThemedText>
           </View>
           <View style={styles.pointsBadge}>
             <ThemedText style={styles.pointsText}>850 pts</ThemedText>
@@ -106,20 +141,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Miniservices Quick Access */}
-      <View style={styles.servicesGrid}>
-        {MINISERVICES.map(service => (
-          <TouchableOpacity 
-            key={service.id} 
-            style={styles.serviceItem}
-            onPress={() => router.push(service.route as any)}
-          >
-            <View style={[styles.serviceIconContainer, { backgroundColor: colorScheme === 'light' ? '#fff' : '#333'}]}>
-              <service.icon size={28} color={service.color} />
-            </View>
-            <ThemedText style={styles.serviceNameText}>{service.name}</ThemedText>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <ShortcutsCarousel />
 
       {/* Search Bar */}
       <TouchableOpacity 
@@ -132,35 +154,46 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/* Flash Sales */}
-      <View style={styles.sectionHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <ThemedText type="subtitle">Flash Sales</ThemedText>
-          <View style={styles.timerBadge}>
-            <ThemedText style={styles.timerText}>02:45:12</ThemedText>
-          </View>
-        </View>
-        <TouchableOpacity onPress={() => router.push('/shop/flash-sale')}>
-          <ThemedText style={{ color: Colors[colorScheme].tint }}>See All</ThemedText>
-        </TouchableOpacity>
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.flashSalesList}>
-        {FLASH_SALES.map(item => (
-          <TouchableOpacity 
-            key={item.id} 
-            style={[styles.flashSaleCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
-            onPress={() => router.push(`/shop/product/${item.id}`)}
-          >
-            <Image source={{ uri: item.image }} style={styles.flashSaleImage} />
-            <View style={styles.discountBadge}>
-              <ThemedText style={styles.discountText}>{item.discount}</ThemedText>
+      {flashSales.length > 0 && (
+        <>
+            <View style={styles.sectionHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ThemedText type="subtitle">Flash Sales</ThemedText>
+                <View style={styles.timerBadge}>
+                    <ThemedText style={styles.timerText}>02:45:12</ThemedText>
+                </View>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/shop/flash-sale')}>
+                <ThemedText style={{ color: Colors[colorScheme].tint }}>See All</ThemedText>
+                </TouchableOpacity>
             </View>
-            <View style={styles.flashSaleInfo}>
-              <ThemedText numberOfLines={1} style={styles.flashSaleName}>{item.name}</ThemedText>
-              <ThemedText style={{ fontWeight: '500', fontSize: 12, color: Colors[colorScheme].text }}>Ksh <ThemedText style={{ color: Colors[colorScheme].tint }}>{item.price}</ThemedText></ThemedText>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.flashSalesList}>
+                {flashSales.map(item => (
+                <TouchableOpacity 
+                    key={item.id} 
+                    style={[styles.flashSaleCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
+                    onPress={() => router.push(`/shop/product/${item.id}`)}
+                >
+                    <View style={styles.flashSaleImageContainer}>
+                      <Image 
+                        source={{ uri: item.image_urls?.[0] || 'https://via.placeholder.com/150' }} 
+                        style={styles.flashSaleImage} 
+                        contentFit="cover"
+                        transition={200}
+                      />
+                    </View>
+                    <View style={styles.discountBadge}>
+                    <ThemedText style={styles.discountText}>{item.discount_percentage}% OFF</ThemedText>
+                    </View>
+                    <View style={styles.flashSaleInfo}>
+                    <ThemedText numberOfLines={1} style={styles.flashSaleName}>{item.name}</ThemedText>
+                    <ThemedText style={{ fontWeight: '500', fontSize: 12, color: Colors[colorScheme].text }}>Ksh <ThemedText style={{ color: Colors[colorScheme].tint }}>{item.price}</ThemedText></ThemedText>
+                    </View>
+                </TouchableOpacity>
+                ))}
+            </ScrollView>
+        </>
+      )}
 
       {/* Categories */}
       <View style={styles.sectionHeader}>
@@ -170,14 +203,18 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesList}>
-        {CATEGORIES.map(cat => (
+        {categories.map(cat => (
           <TouchableOpacity 
             key={cat.id} 
             style={styles.categoryItem}
             onPress={() => router.push(`/shop/category/${cat.name}`)}
           >
             <View style={[styles.categoryIcon, { backgroundColor: colorScheme === 'light' ? '#fff' : '#333' }]}>
-              <cat.icon size={24} color={Colors[colorScheme].tint} />
+                {cat.image_url ? (
+                    <Image source={{ uri: cat.image_url }} style={{ width: '100%', height: '100%', borderRadius: 30 }} />
+                ) : (
+                    <LayoutGrid size={24} color={Colors[colorScheme].tint} />
+                )}
             </View>
             <ThemedText style={styles.categoryName}>{cat.name}</ThemedText>
           </TouchableOpacity>
@@ -192,19 +229,26 @@ export default function HomeScreen() {
     </View>
   );
 
-  const renderProduct = ({ item }: { item: typeof PRODUCTS[0] }) => (
+  const renderProduct = ({ item }: { item: any }) => (
     <TouchableOpacity 
       style={[styles.productCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
       onPress={() => router.push(`/shop/product/${item.id}`)}
     >
-      <Image source={{ uri: item.image }} style={styles.productImage} />
-      <TouchableOpacity style={styles.wishlistIcon}>
-        <Star size={16} color="#fff" />
-      </TouchableOpacity>
+      <View style={styles.productImageContainer}>
+        <Image 
+          source={{ uri: item.image_urls?.[0] || 'https://via.placeholder.com/150' }} 
+          style={styles.productImage} 
+          contentFit="cover"
+          transition={200}
+        />
+        <TouchableOpacity style={[styles.wishlistIcon, { backgroundColor: colorScheme === 'dark' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.8)' }]}>
+          <Star size={16} color={colorScheme === 'dark' ? '#fff' : '#000'} />
+        </TouchableOpacity>
+      </View>
       <View style={styles.productInfo}>
         <ThemedText numberOfLines={1} style={styles.productName}>{item.name}</ThemedText>
         <View style={styles.priceRow}>
-          <ThemedText style={{ fontWeight: '500', fontSize: 12 }}>Ksh <ThemedText style={{ color: Colors[colorScheme].tint }}>{item.price}</ThemedText></ThemedText>
+          <ThemedText style={{ fontWeight: '500', fontSize: 12 }}>{item.currency} <ThemedText style={{ color: Colors[colorScheme].tint }}>{item.price}</ThemedText></ThemedText>
           <View style={styles.ratingRow}>
             <Star size={10} color="#FFD700" fill="#FFD700" />
             <ThemedText style={styles.ratingText}>{item.rating}</ThemedText>
@@ -214,22 +258,35 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
+  if (loading) {
+    return (
+        <ThemedView style={styles.container}>
+            <View style={styles.loaderContainer}>
+                <ProductSkeleton />
+                <ProductSkeleton />
+                <ProductSkeleton />
+                <ProductSkeleton />
+            </View>
+        </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       <FlatList
-        data={displayProducts}
+        data={featuredProducts}
         keyExtractor={(item) => item.id}
         renderItem={renderProduct}
         numColumns={2}
         ListHeaderComponent={renderHeader}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        windowSize={5} // Keeps 1 visible + 2 above + 2 below. Purges older items.
+        windowSize={5}
         maxToRenderPerBatch={8}
         initialNumToRender={10}
         removeClippedSubviews={true}
         getItemLayout={(data, index) => ({
-          length: 224, // Calculated height of featured product card
+          length: 224,
           offset: 224 * Math.floor(index / 2),
           index,
         })}
@@ -300,4 +357,11 @@ const styles = StyleSheet.create({
   columnWrapper: { justifyContent: 'space-between', paddingHorizontal: 20 },
   skeletonFooter: { flexDirection: 'row', justifyContent: 'space-between', padding: 20 },
   loaderContainer: { paddingVertical: 20, alignItems: 'center' },
+  recentOrdersList: { paddingLeft: 20, paddingRight: 20, marginBottom: 25 },
+  orderCard: { width: 160, borderRadius: 20, padding: 15, marginRight: 15, elevation: 2, shadowOpacity: 0.05, shadowRadius: 5 },
+  orderBadge: { position: 'absolute', top: 12, right: 12, backgroundColor: '#4CAF5015', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
+  orderBadgeText: { fontSize: 8, fontWeight: 'bold', color: '#4CAF50' },
+  orderId: { fontSize: 13, fontWeight: 'bold', marginBottom: 5 },
+  orderAmount: { fontSize: 12, opacity: 0.8 },
+  orderDate: { fontSize: 10, opacity: 0.5, marginTop: 5 },
 });

@@ -1,22 +1,45 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Box, MapPin, Truck, History, ChevronRight, Navigation } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-
-const RECENT_TRACKING = [
-  { id: '1', number: 'SH-7721054', status: 'In Transit', location: 'Nairobi Hub', date: 'Oct 24, 2023' },
-  { id: '2', number: 'SH-8812033', status: 'Delivered', location: 'Home', date: 'Oct 20, 2023' },
-];
+import { api } from '@/services/api';
 
 export default function DeliveryScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#673AB7'; // Delivery purple
   const isDark = colorScheme === 'dark';
+
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDeliveryServices();
+  }, []);
+
+  const fetchDeliveryServices = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getServicesByType('delivery');
+        setServices(data || []);
+    } catch (err) {
+        console.error('Failed to fetch delivery services:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -62,7 +85,21 @@ export default function DeliveryScreen() {
             </View>
             <ThemedText style={styles.actionLabel}>Pick Up</ThemedText>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
+          <TouchableOpacity 
+            style={[styles.actionCard, { backgroundColor: isDark ? '#222' : '#fff' }]}
+            onPress={async () => {
+              try {
+                const response = await api.calculateDeliveryQuote({
+                  distance: 10, // Example distance
+                  is_peak_hour: false,
+                  weather_surcharge: 0
+                });
+                alert(`Estimated delivery cost: ${response.estimated_price} ${response.currency}`);
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+          >
             <View style={[styles.actionIcon, { backgroundColor: '#FFF3E0' }]}>
               <Navigation size={24} color="#FF9800" />
             </View>
@@ -72,25 +109,28 @@ export default function DeliveryScreen() {
 
         {/* Recent Trackings */}
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Recent Tracking</ThemedText>
+          <ThemedText type="subtitle">Delivery Options</ThemedText>
           <TouchableOpacity><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
         </View>
 
-        {RECENT_TRACKING.map(track => (
-          <TouchableOpacity key={track.id} style={[styles.trackItem, { backgroundColor: isDark ? '#222' : '#fff' }]}>
+        {services.length > 0 ? services.map(service => (
+          <TouchableOpacity key={service.id} style={[styles.trackItem, { backgroundColor: isDark ? '#222' : '#fff' }]}>
             <View style={[styles.boxIcon, { backgroundColor: activeColor + '15' }]}>
               <Box size={20} color={activeColor} />
             </View>
             <View style={styles.trackInfo}>
-              <ThemedText type="defaultSemiBold">ID: {track.number}</ThemedText>
-              <ThemedText style={styles.trackStatus}>{track.status} • {track.location}</ThemedText>
+              <ThemedText type="defaultSemiBold">{service.name}</ThemedText>
+              <ThemedText style={styles.trackStatus}>{service.currency} {service.base_price}</ThemedText>
             </View>
             <View style={styles.trackDate}>
-              <ThemedText style={styles.dateText}>{track.date}</ThemedText>
               <ChevronRight size={16} color="#888" />
             </View>
           </TouchableOpacity>
-        ))}
+        )) : (
+            <View style={{ alignItems: 'center', marginTop: 20 }}>
+                <ThemedText style={{ opacity: 0.5 }}>No delivery options available</ThemedText>
+            </View>
+        )}
 
         {/* Map Promo */}
         <View style={[styles.mapPromo, { backgroundColor: isDark ? '#222' : '#f8f8f8' }]}>

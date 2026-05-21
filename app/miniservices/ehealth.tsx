@@ -1,11 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Search, Plus, Calendar, Activity, Pill, User, ChevronRight, Bell } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
+import { api } from '@/services/api';
 
 const CATEGORIES = [
   { id: '1', name: 'Doctors', icon: User, color: '#4CAF50' },
@@ -14,15 +15,38 @@ const CATEGORIES = [
   { id: '4', name: 'Hospital', icon: Plus, color: '#F44336' },
 ];
 
-const UPCOMING_APPOINTMENTS = [
-  { id: '1', doctor: 'Dr. Sarah Wilson', specialty: 'Cardiologist', time: 'Tomorrow, 10:30 AM', image: 'https://medtreksinternational.com/wp-content/uploads/2021/02/Dr-Esther-scaled.jpg' },
-];
-
 export default function HealthScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#2196F3';
   const isDark = colorScheme === 'dark';
+
+  const [pharmacyItems, setPharmacyItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHealthData();
+  }, []);
+
+  const fetchHealthData = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getPharmacy();
+        setPharmacyItems(data || []);
+    } catch (err) {
+        console.error('Failed to fetch health data:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -82,28 +106,34 @@ export default function HealthScreen() {
           ))}
         </View>
 
-        {/* Upcoming Appointments */}
+        {/* Pharmacy Items */}
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Upcoming Appointment</ThemedText>
+          <ThemedText type="subtitle">Pharmacy Items</ThemedText>
           <TouchableOpacity><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
         </View>
-        
-        {UPCOMING_APPOINTMENTS.map(app => (
-          <TouchableOpacity key={app.id} style={[styles.appointmentCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-            <Image source={{ uri: app.image }} style={styles.doctorImage} />
+
+        {pharmacyItems.length > 0 ? pharmacyItems.map(item => (
+          <TouchableOpacity key={item.id} style={[styles.appointmentCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
+            <Image source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} style={styles.doctorImage} />
             <View style={styles.appointmentInfo}>
-              <ThemedText type="defaultSemiBold">{app.doctor}</ThemedText>
-              <ThemedText style={styles.specialtyText}>{app.specialty}</ThemedText>
+              <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
+              <ThemedText style={styles.specialtyText}>{item.category || 'General'}</ThemedText>
               <View style={styles.timeRow}>
-                <Calendar size={14} color={activeColor} />
-                <ThemedText style={styles.timeText}>{app.time}</ThemedText>
+                <ThemedText style={[styles.timeText, { color: activeColor, fontWeight: 'bold', marginLeft: 0 }]}>{item.currency} {item.price}</ThemedText>
               </View>
             </View>
-            <TouchableOpacity style={[styles.chatBtn, { backgroundColor: activeColor }]}>
-              <Bell size={18} color="#fff" />
+            <TouchableOpacity 
+                style={[styles.chatBtn, { backgroundColor: activeColor }]}
+                onPress={() => api.addToCart(item.business_id, item.id, 'pharmacy', 1)}
+            >
+              <Plus size={18} color="#fff" />
             </TouchableOpacity>
           </TouchableOpacity>
-        ))}
+        )) : (
+            <View style={{ alignItems: 'center', marginTop: 20 }}>
+                <ThemedText style={{ opacity: 0.5 }}>No items available</ThemedText>
+            </View>
+        )}
 
         {/* Health Article Promo */}
         <TouchableOpacity style={[styles.promoCard, { backgroundColor: activeColor }]}>

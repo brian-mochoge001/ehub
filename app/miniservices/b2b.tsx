@@ -1,23 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Search, Building2, Package, FileText, Globe } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-
-const B2B_CATEGORIES = [
-  { id: '1', name: 'Industrial', icon: '⚙️' },
-  { id: '2', name: 'Wholesale', icon: '📦' },
-  { id: '3', name: 'Electronics', icon: '🔌' },
-  { id: '4', name: 'Packaging', icon: '🗞️' },
-];
-
-const RECENT_QUOTES = [
-  { id: '1', title: 'Bulk LED Monitors', supplier: 'Tech Corp', status: 'Pending', date: 'Oct 24, 2023' },
-  { id: '2', title: 'Office Stationery', supplier: 'Stationery Hub', status: 'Approved', date: 'Oct 22, 2023' },
-];
+import { api } from '@/services/api';
 
 export default function B2BScreen() {
   const router = useRouter();
@@ -25,14 +14,41 @@ export default function B2BScreen() {
   const activeColor = '#455A64'; // Professional slate grey
   const isDark = colorScheme === 'dark';
 
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchB2B();
+  }, []);
+
+  const fetchB2B = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getServicesByType('b2b');
+        setServices(data || []);
+    } catch (err) {
+        console.error('Failed to fetch B2B services:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDark ? '#1a1a1a' : '#fff' }]}>
+      <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
-        <ThemedText type="subtitle" style={styles.headerTitle}>eHub B2B</ThemedText>
+        <ThemedText type="subtitle" style={styles.headerTitle}>Wholesaler</ThemedText>
         <TouchableOpacity style={styles.iconButton}>
           <Globe size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
@@ -68,33 +84,29 @@ export default function B2BScreen() {
           <ThemedText type="subtitle">Supplies & Equipment</ThemedText>
           <TouchableOpacity><ThemedText style={{ color: '#2196F3' }}>See All</ThemedText></TouchableOpacity>
         </View>
-        <View style={styles.catGrid}>
-          {B2B_CATEGORIES.map(cat => (
-            <TouchableOpacity key={cat.id} style={[styles.catCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-              <ThemedText style={styles.catEmoji}>{cat.icon}</ThemedText>
-              <ThemedText type="defaultSemiBold" style={styles.catName}>{cat.name}</ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
 
         {/* Recent Quotes */}
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Request Quotes</ThemedText>
+          <ThemedText type="subtitle">Suppliers & Wholesale</ThemedText>
           <TouchableOpacity><ThemedText style={{ color: '#2196F3' }}>View All</ThemedText></TouchableOpacity>
         </View>
 
-        {RECENT_QUOTES.map(quote => (
-          <TouchableOpacity key={quote.id} style={[styles.quoteCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
+        {services.length > 0 ? services.map(service => (
+          <TouchableOpacity key={service.id} style={[styles.quoteCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
             <View style={styles.quoteInfo}>
-              <ThemedText type="defaultSemiBold">{quote.title}</ThemedText>
-              <ThemedText style={styles.supplierText}>{quote.supplier}</ThemedText>
-              <ThemedText style={styles.quoteDate}>{quote.date}</ThemedText>
+              <ThemedText type="defaultSemiBold">{service.name}</ThemedText>
+              <ThemedText style={styles.supplierText}>{service.business_name || 'Verified Wholesaler'}</ThemedText>
+              <ThemedText style={styles.quoteDate}>{service.currency} {service.base_price}</ThemedText>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: quote.status === 'Approved' ? '#E8F5E9' : '#FFF3E0' }]}>
-              <ThemedText style={[styles.statusText, { color: quote.status === 'Approved' ? '#2E7D32' : '#E65100' }]}>{quote.status}</ThemedText>
+            <View style={[styles.statusBadge, { backgroundColor: '#E8F5E9' }]}>
+              <ThemedText style={[styles.statusText, { color: '#2E7D32' }]}>Available</ThemedText>
             </View>
           </TouchableOpacity>
-        ))}
+        )) : (
+            <View style={{ alignItems: 'center', marginTop: 20 }}>
+                <ThemedText style={{ opacity: 0.5 }}>No wholesale services found</ThemedText>
+            </View>
+        )}
 
         {/* Vendor Promo */}
         <View style={[styles.vendorCard, { backgroundColor: activeColor }]}>
@@ -113,9 +125,9 @@ export default function B2BScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 15 },
-  backButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(128,128,128,0.1)' },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', backgroundColor: '#455A64', paddingTop: 50, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 15 },
+  backButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(180,180,180, 0.5)' },
   headerTitle: { flex: 1, textAlign: 'center', fontWeight: 'bold' },
   iconButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { paddingBottom: 40 },

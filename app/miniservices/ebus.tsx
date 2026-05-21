@@ -1,22 +1,45 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Bus, MapPin, Calendar, Clock, ChevronRight, Info, Heart } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-
-const POPULAR_ROUTES = [
-  { id: '1', from: 'Nairobi', to: 'Mombasa', price: 'Ksh1,500.00', time: '8h 30m' },
-  { id: '2', from: 'Nairobi', to: 'Kisumu', price: 'Ksh1,500.00', time: '6h 45m' },
-  { id: '3', from: 'Mombasa', to: 'Malindi', price: 'Ksh500.00', time: '2h 15m' },
-];
+import { api } from '@/services/api';
+import { Colors } from '@/constants/theme';
 
 export default function BusScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#FF5722'; // Bus orange
   const isDark = colorScheme === 'dark';
+
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRoutes();
+  }, []);
+
+  const fetchRoutes = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getBusRoutes();
+        setRoutes(data || []);
+    } catch (err) {
+        console.error('Failed to fetch routes:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -82,32 +105,36 @@ export default function BusScreen() {
 
         {/* Popular Routes */}
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Popular Routes</ThemedText>
+          <ThemedText type="subtitle">Available Routes</ThemedText>
           <TouchableOpacity><ThemedText style={{ color: activeColor }}>View All</ThemedText></TouchableOpacity>
         </View>
 
-        {POPULAR_ROUTES.map(route => (
+        {routes.length > 0 ? routes.map(route => (
           <TouchableOpacity key={route.id} style={[styles.routeCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
             <View style={styles.routeMain}>
               <View style={styles.cities}>
-                <ThemedText type="defaultSemiBold">{route.from}</ThemedText>
+                <ThemedText type="defaultSemiBold">{route.origin}</ThemedText>
                 <ChevronRight size={14} color="#888" style={{ marginHorizontal: 10 }} />
-                <ThemedText type="defaultSemiBold">{route.to}</ThemedText>
+                <ThemedText type="defaultSemiBold">{route.destination}</ThemedText>
               </View>
-              <ThemedText style={styles.priceText}>{route.price}</ThemedText>
+              <ThemedText style={styles.priceText}>{route.currency} {route.price}</ThemedText>
             </View>
             <View style={styles.routeFooter}>
               <View style={styles.footerItem}>
-                <Clock size={12} color="#888" />
-                <ThemedText style={styles.footerText}>{route.time}</ThemedText>
+                <Calendar size={12} color="#888" />
+                <ThemedText style={styles.footerText}>{new Date(route.departure_time).toLocaleString()}</ThemedText>
               </View>
               <View style={styles.footerItem}>
-                <Info size={12} color="#888" />
-                <ThemedText style={styles.footerText}>Air Conditioned</ThemedText>
+                <Bus size={12} color="#888" />
+                <ThemedText style={styles.footerText}>{route.bus_type}</ThemedText>
               </View>
             </View>
           </TouchableOpacity>
-        ))}
+        )) : (
+            <View style={{ alignItems: 'center', marginTop: 20 }}>
+                <ThemedText style={{ opacity: 0.5 }}>No bus routes available</ThemedText>
+            </View>
+        )}
 
         {/* Info Banner */}
         <View style={[styles.infoBanner, { backgroundColor: '#FFF3E0' }]}>

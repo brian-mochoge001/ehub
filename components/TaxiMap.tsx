@@ -17,9 +17,10 @@ interface TaxiMapProps {
   driverId?: string;
   userLocation?: { latitude: number; longitude: number };
   showNearby?: boolean;
+  driverMode?: 'taxi' | 'motorbike';
 }
 
-export default function TaxiMap({ driverId, userLocation, showNearby = true }: TaxiMapProps) {
+export default function TaxiMap({ driverId, userLocation, showNearby = true, driverMode = 'taxi' }: TaxiMapProps) {
   const [driver, setDriver] = useState<DriverLocation | null>(null);
   const [nearbyDrivers, setNearbyDrivers] = useState<DriverLocation[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -27,20 +28,6 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true }: T
 
   // Default User Location (Nairobi)
   const userPos = userLocation || { latitude: -1.286389, longitude: 36.817223 };
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    const poll = () => {
-      if (driverId) fetchTrackedDriver();
-      if (showNearby) fetchNearbyDrivers();
-    };
-
-    poll();
-    interval = setInterval(poll, 2000);
-
-    return () => clearInterval(interval);
-  }, [driverId, showNearby, fetchTrackedDriver, fetchNearbyDrivers]);
 
   const fetchTrackedDriver = React.useCallback(async () => {
     if (!driverId) return;
@@ -56,12 +43,28 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true }: T
 
   const fetchNearbyDrivers = React.useCallback(async () => {
     try {
-      const data = await api.getNearbyDrivers(userPos.longitude, userPos.latitude);
+      const data = driverMode === 'motorbike'
+        ? await api.getNearbyMotorbikeDrivers(userPos.longitude, userPos.latitude)
+        : await api.getNearbyDrivers(userPos.longitude, userPos.latitude);
       setNearbyDrivers(data);
     } catch (err) {
       console.error('Error fetching nearby drivers:', err);
     }
-  }, [userPos.longitude, userPos.latitude]);
+  }, [driverMode, userPos.longitude, userPos.latitude]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    const poll = () => {
+      if (driverId) fetchTrackedDriver();
+      if (showNearby) fetchNearbyDrivers();
+    };
+
+    poll();
+    interval = setInterval(poll, 2000);
+
+    return () => clearInterval(interval);
+  }, [driverId, showNearby, fetchTrackedDriver, fetchNearbyDrivers]);
 
   const initialRegion = {
     ...userPos,
@@ -141,7 +144,7 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true }: T
         <Text style={styles.infoTitle}>PostGIS Taxi Simulator</Text>
         {showNearby && (
           <Text style={styles.infoText}>
-            Showing {nearbyDrivers.length} nearby drivers (PostGIS ST_Distance)
+            Showing {nearbyDrivers.length} nearby {driverMode === 'motorbike' ? 'motorbike' : 'taxi'} drivers
           </Text>
         )}
         {driver ? (

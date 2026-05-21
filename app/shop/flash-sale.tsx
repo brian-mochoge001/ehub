@@ -1,27 +1,46 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Clock, ShoppingCart } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
+import { api } from '@/services/api';
 
 const { width } = Dimensions.get('window');
-
-const FLASH_SALES = [
-  { id: '1', name: 'MacBook Pro M3', price: '1,299', oldPrice: '1,499', discount: '15% OFF', image: 'https://p.turbosquid.com/ts-thumb/Er/pVXRH9/f5/render9/jpg/1698836482/600x600/fit_q87/884035449414a1d9d55583f603f6eeba72f2b135/render9.jpg', stock: 5 },
-  { id: '2', name: 'iPhone 15 Pro', price: '999', oldPrice: '1,099', discount: '10% OFF', image: 'https://alephksa.com/cdn/shop/files/iPhone_15_Pro_Natural_Titanium_PDP_Image_Position-1__en-ME.jpg?v=1694758467&width=1445', stock: 12 },
-  { id: '3', name: 'Sony WH-1000XM5', price: '349', oldPrice: '429', discount: '20% OFF', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80', stock: 8 },
-  { id: '4', name: 'iPad Air M2', price: '549', oldPrice: '599', discount: '8% OFF', image: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=500&q=80', stock: 15 },
-  { id: '5', name: 'Samsung S24 Ultra', price: '1,199', oldPrice: '1,299', discount: '8% OFF', image: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=500&q=80', stock: 4 },
-  { id: '6', name: 'DJI Mini 4 Pro', price: '759', oldPrice: '899', discount: '15% OFF', image: 'https://images.unsplash.com/photo-1507582020474-9a35b7d455d9?w=500&q=80', stock: 2 },
-];
 
 export default function FlashSaleScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = Colors[colorScheme].tint;
+
+  const [flashSales, setFlashSales] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchFlashSales();
+  }, []);
+
+  const fetchFlashSales = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getFlashSaleProducts();
+        setFlashSales(data || []);
+    } catch (err) {
+        console.error('Failed to fetch flash sales:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -42,35 +61,41 @@ export default function FlashSaleScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.grid}>
-          {FLASH_SALES.map((item) => (
+          {flashSales.length > 0 ? flashSales.map((item) => (
             <TouchableOpacity 
               key={item.id} 
               style={[styles.card, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
               onPress={() => router.push(`/shop/product/${item.id}`)}
             >
-              <Image source={{ uri: item.image }} style={styles.image} />
+              <Image source={{ uri: item.image_url || 'https://via.placeholder.com/400' }} style={styles.image} />
               <View style={styles.discountBadge}>
-                <ThemedText style={styles.discountText}>{item.discount}</ThemedText>
+                <ThemedText style={styles.discountText}>{item.discount_percentage}% OFF</ThemedText>
               </View>
               
               <View style={styles.info}>
                 <ThemedText numberOfLines={1} style={styles.name}>{item.name}</ThemedText>
                 <View style={styles.priceRow}>
-                  <ThemedText style={[styles.price, { color: activeColor }]}>{item.price}</ThemedText>
-                  <ThemedText style={styles.oldPrice}>{item.oldPrice}</ThemedText>
+                  <ThemedText style={[styles.price, { color: activeColor }]}>{item.currency} {item.price}</ThemedText>
                 </View>
                 
                 <View style={styles.stockBarContainer}>
-                  <View style={[styles.stockBar, { width: `${(item.stock / 20) * 100}%`, backgroundColor: activeColor }]} />
+                  <View style={[styles.stockBar, { width: `${(item.stock_quantity / 50) * 100}%`, backgroundColor: activeColor }]} />
                 </View>
-                <ThemedText style={styles.stockText}>{item.stock} left in stock</ThemedText>
+                <ThemedText style={styles.stockText}>{item.stock_quantity} left in stock</ThemedText>
                 
-                <TouchableOpacity style={[styles.addButton, { backgroundColor: activeColor }]}>
+                <TouchableOpacity 
+                    style={[styles.addButton, { backgroundColor: activeColor }]}
+                    onPress={() => api.addToCart(item.business_id, item.id, 'ecommerce', 1)}
+                >
                   <ShoppingCart size={18} color="#fff" />
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
-          ))}
+          )) : (
+              <View style={{ width: '100%', alignItems: 'center', marginTop: 50 }}>
+                  <ThemedText style={{ opacity: 0.5 }}>No flash sales available</ThemedText>
+              </View>
+          )}
         </View>
       </ScrollView>
     </ThemedView>

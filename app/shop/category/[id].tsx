@@ -1,32 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Search, SlidersHorizontal, Star } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-
-const CATEGORY_PRODUCTS: Record<string, any[]> = {
-  'Electronics': [
-    { id: '1', name: 'Wireless Earbuds', price: '$49.99', rating: 4.8, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80' },
-    { id: '2', name: 'Smart Watch', price: '$129.99', rating: 4.5, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80' },
-    { id: '5', name: 'Gaming Mouse', price: '$59.99', rating: 4.9, image: 'https://images.unsplash.com/photo-1527690719478-fb9766964b36?w=500&q=80' },
-  ],
-  'Fashion': [
-    { id: '7', name: 'Classic T-Shirt', price: '$25.00', rating: 4.4, image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80' },
-    { id: '8', name: 'Denim Jacket', price: '$85.00', rating: 4.7, image: 'https://images.unsplash.com/photo-1523205771623-e0faa4d2813d?w=500&q=80' },
-  ],
-  'Home': [
-    { id: '4', name: 'Coffee Maker', price: '$89.00', rating: 4.6, image: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?w=500&q=80' },
-    { id: '9', name: 'Table Lamp', price: '$45.00', rating: 4.3, image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=500&q=80' },
-  ],
-};
-
-const DEFAULT_PRODUCTS = [
-  { id: '3', name: 'Premium Backpack', price: '$79.00', rating: 4.7, image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80' },
-  { id: '6', name: 'Yoga Mat', price: '$29.00', rating: 4.7, image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500&q=80' },
-];
+import { api } from '@/services/api';
 
 export default function CategoryScreen() {
   const router = useRouter();
@@ -35,7 +15,36 @@ export default function CategoryScreen() {
   const activeColor = Colors[colorScheme].tint;
   
   const categoryName = typeof id === 'string' ? id : 'Products';
-  const products = CATEGORY_PRODUCTS[categoryName] || DEFAULT_PRODUCTS;
+  
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [categoryName]);
+
+  const fetchProducts = async () => {
+    try {
+        setLoading(true);
+        // We'll use getFeaturedProducts but filter by category name locally for now
+        // A better way would be a category-specific endpoint
+        const all = await api.getFeaturedProducts(50);
+        const filtered = all.filter((p: any) => p.category_name === categoryName);
+        setProducts(filtered);
+    } catch (err) {
+        console.error('Failed to fetch category products:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -62,25 +71,29 @@ export default function CategoryScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.productsGrid}>
-          {products.map((product) => (
+          {products.length > 0 ? products.map((product) => (
             <TouchableOpacity 
               key={product.id} 
               style={[styles.productCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
               onPress={() => router.push(`/shop/product/${product.id}`)}
             >
-              <Image source={{ uri: product.image }} style={styles.productImage} />
+              <Image source={{ uri: product.image_url || 'https://via.placeholder.com/150' }} style={styles.productImage} />
               <View style={styles.productInfo}>
                 <ThemedText numberOfLines={1} style={styles.productName}>{product.name}</ThemedText>
                 <View style={styles.priceRow}>
-                  <ThemedText style={[styles.productPrice, { color: activeColor }]}>{product.price}</ThemedText>
+                  <ThemedText style={[styles.productPrice, { color: activeColor }]}>{product.currency} {product.price}</ThemedText>
                   <View style={styles.ratingRow}>
                     <Star size={10} color="#FFD700" fill="#FFD700" />
-                    <ThemedText style={styles.ratingText}>{product.rating}</ThemedText>
+                    <ThemedText style={styles.ratingText}>{product.rating || '0.0'}</ThemedText>
                   </View>
                 </View>
               </View>
             </TouchableOpacity>
-          ))}
+          )) : (
+              <View style={{ width: '100%', alignItems: 'center', marginTop: 50 }}>
+                  <ThemedText style={{ opacity: 0.5 }}>No products in this category</ThemedText>
+              </View>
+          )}
         </View>
       </ScrollView>
     </ThemedView>

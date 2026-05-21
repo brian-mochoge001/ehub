@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   Image,
   ImageBackground,
+  ActivityIndicator,
 } from 'react-native';
 import { ArrowLeft, Star, Play, Ticket } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { api } from '@/services/api';
 
 const ACTIVE_COLOR = '#E50914';
 
@@ -95,24 +97,55 @@ const COMING_SOON = [
 export default function CinemaScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(TABS.NOW_PLAYING);
+  const [nowPlaying, setNowPlaying] = useState<any[]>([]);
+  const [comingSoon, setComingSoon] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const featuredMovie = NOW_PLAYING[0];
+  useEffect(() => {
+    fetchMovies();
+  }, []);
+
+  const fetchMovies = async () => {
+    try {
+        setLoading(true);
+        const [now, soon] = await Promise.all([
+            api.getMovies(true),
+            api.getMovies(false)
+        ]);
+        setNowPlaying(now || []);
+        setComingSoon(soon || []);
+    } catch (err) {
+        console.error('Failed to fetch movies:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const featuredMovie = nowPlaying[0] || { title: 'No Movies', genre: '', poster_url: 'https://via.placeholder.com/800' };
 
   const renderContent = () => {
+    if (loading) {
+        return (
+            <View style={styles.emptyState}>
+                <ActivityIndicator size="large" color={ACTIVE_COLOR} />
+            </View>
+        );
+    }
+
     switch (activeTab) {
       case TABS.NOW_PLAYING:
         return (
           <View style={styles.moviesGrid}>
-            {NOW_PLAYING.map((movie) => (
+            {nowPlaying.map((movie) => (
               <TouchableOpacity key={movie.id} style={styles.movieCard}>
-                <Image source={{ uri: movie.image }} style={styles.posterImage} />
+                <Image source={{ uri: movie.poster_url || 'https://via.placeholder.com/400' }} style={styles.posterImage} />
                 <ThemedText numberOfLines={1} style={styles.posterTitle}>
                   {movie.title}
                 </ThemedText>
                 <View style={styles.posterRating}>
                   <Star size={10} color="#FFD700" fill="#FFD700" />
                   <ThemedText style={styles.posterRatingText}>
-                    {movie.rating}
+                    {movie.rating || '0.0'}
                   </ThemedText>
                 </View>
               </TouchableOpacity>
@@ -125,14 +158,14 @@ export default function CinemaScreen() {
           <ScrollView
             contentContainerStyle={styles.comingSoonList}
           >
-            {COMING_SOON.map((movie) => (
+            {comingSoon.map((movie) => (
               <TouchableOpacity key={movie.id} style={styles.smallMovieCard}>
-                <Image source={{ uri: movie.image }} style={styles.smallPoster} />
+                <Image source={{ uri: movie.poster_url || 'https://via.placeholder.com/400' }} style={styles.smallPoster} />
                 <ThemedText numberOfLines={1} style={styles.smallMovieTitle}>
                   {movie.title}
                 </ThemedText>
                 <ThemedText style={styles.releaseDate}>
-                  {movie.date}
+                  {new Date(movie.release_date).toLocaleDateString()}
                 </ThemedText>
               </TouchableOpacity>
             ))}
@@ -174,7 +207,7 @@ export default function CinemaScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* FEATURED */}
         <ImageBackground
-          source={{ uri: featuredMovie.image }}
+          source={{ uri: featuredMovie.poster_url || featuredMovie.image }}
           style={styles.featured}
         >
           <View style={styles.overlay}>
@@ -220,7 +253,7 @@ export default function CinemaScreen() {
 }
 
 /* TAB COMPONENT */
-function Tab({ label, active, onPress }) {
+function Tab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <TouchableOpacity
       onPress={onPress}

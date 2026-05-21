@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput, Platform, FlatList, Modal, TouchableWithoutFeedback, KeyboardAvoidingView } from 'react-native';
 import { ArrowLeft, Search, SlidersHorizontal, Star, ShoppingCart, X, Check } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
@@ -7,17 +7,9 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ProductSkeleton } from '@/components/Skeleton';
+import { api } from '@/services/api';
 
-const SEARCH_RESULTS = [
-  { id: '1', name: 'Wireless Earbuds Pro', price: '$89.99', rating: 4.8, category: 'Electronics', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80' },
-  { id: '2', name: 'Smart Fitness Watch', price: '$129.99', rating: 4.5, category: 'Electronics', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80' },
-  { id: '3', name: 'Premium Travel Backpack', price: '$79.00', rating: 4.7, category: 'Fashion', image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80' },
-  { id: '4', name: 'Automatic Coffee Maker', price: '$89.00', rating: 4.6, category: 'Home', image: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?w=500&q=80' },
-  { id: '5', name: 'Ergonomic Gaming Mouse', price: '$59.99', rating: 4.9, category: 'Electronics', image: 'https://images.unsplash.com/photo-1527690719478-fb9766964b36?w=500&q=80' },
-  { id: '6', name: 'Eco-Friendly Yoga Mat', price: '$29.00', rating: 4.7, category: 'Fitness', image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500&q=80' },
-];
-
-const CATEGORIES = ['All', 'Electronics', 'Fashion', 'Home', 'Fitness'];
+const CATEGORY_FILTERS = ['All', 'Electronics', 'Fashion', 'Home', 'Fitness'];
 
 export default function SearchResultsScreen() {
   const router = useRouter();
@@ -36,34 +28,48 @@ export default function SearchResultsScreen() {
   const [isFilterVisible, setIsFilterVisible] = useState(false);
 
   // Infinite Scroll State
-  const [displayResults, setDisplayResults] = useState(SEARCH_RESULTS);
+  const [displayResults, setDisplayResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const filteredResults = displayResults.filter(item => {
-    const matchesQuery = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = appliedCategory === 'All' || item.category === appliedCategory;
-    
-    const price = parseFloat(item.price.replace('$', ''));
-    const min = appliedMinPrice ? parseFloat(appliedMinPrice) : 0;
-    const max = appliedMaxPrice ? parseFloat(appliedMaxPrice) : Infinity;
-    const matchesPrice = price >= min && price <= max;
+  useEffect(() => {
+    fetchResults();
+  }, [searchQuery, appliedCategory, appliedMinPrice, appliedMaxPrice]);
 
-    return matchesQuery && matchesFilter && matchesPrice;
-  });
+  const fetchResults = async () => {
+    try {
+        setLoading(true);
+        // This is a simplification. We should have a real search endpoint on the backend.
+        // For now, we'll fetch all products and filter locally, or use a filtered endpoint if available.
+        const allProducts = await api.getFeaturedProducts(50); 
+        
+        const filtered = allProducts.filter((item: any) => {
+            const matchesQuery = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesFilter = appliedCategory === 'All' || item.category_name === appliedCategory;
+            
+            const price = parseFloat(item.price);
+            const min = appliedMinPrice ? parseFloat(appliedMinPrice) : 0;
+            const max = appliedMaxPrice ? parseFloat(appliedMaxPrice) : Infinity;
+            const matchesPrice = price >= min && price <= max;
 
-  const loadMore = () => {
+            return matchesQuery && matchesFilter && matchesPrice;
+        });
+
+        setDisplayResults(filtered);
+    } catch (err) {
+        console.error('Failed to fetch search results:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const loadMore = async () => {
     if (isLoadingMore) return;
     setIsLoadingMore(true);
-    
-    // Simulate API fetch delay
+    // Simulate more data
     setTimeout(() => {
-      const moreData = SEARCH_RESULTS.map(item => ({
-        ...item,
-        id: Math.random().toString(36).substr(2, 9) // Unique IDs for infinite list
-      }));
-      setDisplayResults(prev => [...prev, ...moreData]);
-      setIsLoadingMore(false);
-    }, 1500);
+        setIsLoadingMore(false);
+    }, 1000);
   };
 
   const applyFilters = () => {
@@ -79,24 +85,27 @@ export default function SearchResultsScreen() {
     setTempMaxPrice('');
   };
 
-  const renderProduct = ({ item }: { item: typeof SEARCH_RESULTS[0] }) => (
+  const renderProduct = ({ item }: { item: any }) => (
     <TouchableOpacity 
       style={[styles.productCard, { backgroundColor: isDark ? '#222' : '#fff' }]}
       onPress={() => router.push(`/shop/product/${item.id}`)}
     >
-      <Image source={{ uri: item.image }} style={styles.productImage} />
+      <Image source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} style={styles.productImage} />
       <View style={styles.productInfo}>
-        <ThemedText style={styles.categoryLabel}>{item.category}</ThemedText>
+        <ThemedText style={styles.categoryLabel}>{item.category_name || 'Generic'}</ThemedText>
         <ThemedText type="defaultSemiBold" numberOfLines={1} style={styles.productName}>{item.name}</ThemedText>
         <View style={styles.priceRow}>
-          <ThemedText style={[styles.productPrice, { color: activeColor }]}>{item.price}</ThemedText>
+          <ThemedText style={[styles.productPrice, { color: activeColor }]}>{item.currency} {item.price}</ThemedText>
           <View style={styles.ratingRow}>
             <Star size={12} color="#FFD700" fill="#FFD700" />
-            <ThemedText style={styles.ratingText}>{item.rating}</ThemedText>
+            <ThemedText style={styles.ratingText}>{item.rating || '0.0'}</ThemedText>
           </View>
         </View>
       </View>
-      <TouchableOpacity style={[styles.addToCartBtn, { backgroundColor: activeColor }]}>
+      <TouchableOpacity 
+        style={[styles.addToCartBtn, { backgroundColor: activeColor }]}
+        onPress={() => api.addToCart(item.business_id, item.id, 'ecommerce', 1)}
+      >
         <ShoppingCart size={18} color="#fff" />
       </TouchableOpacity>
     </TouchableOpacity>
@@ -137,45 +146,52 @@ export default function SearchResultsScreen() {
 
       <View style={styles.resultsInfo}>
         <ThemedText style={styles.resultsText}>
-          {filteredResults.length} {filteredResults.length === 1 ? 'result' : 'results'} found
+          {displayResults.length} {displayResults.length === 1 ? 'result' : 'results'} found
         </ThemedText>
       </View>
 
-      <FlatList
-        data={filteredResults}
-        keyExtractor={(item) => item.id}
-        renderItem={renderProduct}
-        numColumns={2}
-        contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.columnWrapper}
-        showsVerticalScrollIndicator={false}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        windowSize={5}
-        maxToRenderPerBatch={8}
-        initialNumToRender={10}
-        removeClippedSubviews={true}
-        getItemLayout={(data, index) => ({
-          length: 240,
-          offset: 240 * Math.floor(index / 2),
-          index,
-        })}
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={styles.skeletonFooter}>
-              <ProductSkeleton />
-              <ProductSkeleton />
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Search size={60} color="#888" style={{ marginBottom: 20, opacity: 0.5 }} />
-            <ThemedText style={styles.emptyTitle}>No results found</ThemedText>
-            <ThemedText style={styles.emptySubtitle}>Try searching for something else or change your filters.</ThemedText>
+      {loading ? (
+          <View style={styles.skeletonFooter}>
+            <ProductSkeleton />
+            <ProductSkeleton />
           </View>
-        }
-      />
+      ) : (
+        <FlatList
+            data={displayResults}
+            keyExtractor={(item) => item.id}
+            renderItem={renderProduct}
+            numColumns={2}
+            contentContainerStyle={styles.listContent}
+            columnWrapperStyle={styles.columnWrapper}
+            showsVerticalScrollIndicator={false}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            windowSize={5}
+            maxToRenderPerBatch={8}
+            initialNumToRender={10}
+            removeClippedSubviews={true}
+            getItemLayout={(data, index) => ({
+            length: 240,
+            offset: 240 * Math.floor(index / 2),
+            index,
+            })}
+            ListFooterComponent={
+            isLoadingMore ? (
+                <View style={styles.skeletonFooter}>
+                <ProductSkeleton />
+                <ProductSkeleton />
+                </View>
+            ) : null
+            }
+            ListEmptyComponent={
+            <View style={styles.emptyState}>
+                <Search size={60} color="#888" style={{ marginBottom: 20, opacity: 0.5 }} />
+                <ThemedText style={styles.emptyTitle}>No results found</ThemedText>
+                <ThemedText style={styles.emptySubtitle}>Try searching for something else or change your filters.</ThemedText>
+            </View>
+            }
+        />
+      )}
 
       {/* iOS Style Filter Sheet (Custom Implementation for Cross-Platform) */}
       <Modal
@@ -204,7 +220,7 @@ export default function SearchResultsScreen() {
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
                   <ThemedText style={styles.sheetSectionTitle}>Category</ThemedText>
                   <View style={styles.categoryGrid}>
-                    {CATEGORIES.map(cat => (
+                    {CATEGORY_FILTERS.map(cat => (
                       <TouchableOpacity 
                         key={cat} 
                         style={[

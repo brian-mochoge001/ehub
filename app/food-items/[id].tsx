@@ -1,73 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { api } from '@/services/api';
 import { Star, ArrowLeft, ShoppingBag, Heart } from 'lucide-react-native';
-
-const FOOD_ITEMS = [
-  { id: 'fi1', name: 'Classic Beef Burger', description: 'Juicy beef patty, fresh lettuce, tomato, onion, and our special sauce.', price: 950.00, image_url: 'https://images.unsplash.com/photo-1568901346379-847e0915a111?w=500&q=80', vendor_id: '1', restaurant_name: 'Gourmet Burger Kitchen', rating: 4.5 },
-  { id: 'fi2', name: 'Sushi Platter Deluxe', description: 'Assortment of fresh sashimi, nigiri, and maki rolls.', price: 2500.00, image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500&q=80', vendor_id: '2', restaurant_name: 'Sushi Zen Master', rating: 4.9 },
-  { id: 'fi3', name: 'Margherita Pizza', description: 'Classic pizza with tomato sauce, mozzarella, and fresh basil.', price: 1200.00, image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80', vendor_id: '3', restaurant_name: 'Napoli Pizzeria', rating: 4.7 },
-  { id: 'fi4', name: 'Veggie Supreme Pizza', description: 'Loaded with fresh vegetables and rich mozzarella cheese.', price: 1350.00, image_url: 'https://images.unsplash.com/photo-1604382186842-bf2330a51989?w=500&q=80', vendor_id: '3', restaurant_name: 'Napoli Pizzeria', rating: 4.6 },
-  { id: 'fi5', name: 'Chicken Teriyaki Bowl', description: 'Grilled chicken with teriyaki sauce, rice, and steamed vegetables.', price: 1100.00, image_url: 'https://images.unsplash.com/photo-1612927601601-52775796c8a7?w=500&q=80', vendor_id: '2', restaurant_name: 'Sushi Zen Master', rating: 4.6 },
-  { id: 'fi6', name: 'Double Cheese Burger', description: 'Two juicy beef patties, double cheese, pickles, and our secret sauce.', price: 1200.00, image_url: 'https://images.unsplash.com/photo-1582236528739-16e53c4481d6?w=500&q=80', vendor_id: '1', restaurant_name: 'Gourmet Burger Kitchen', rating: 4.7 },
-  { id: 'fi7', name: 'Spicy Tuna Roll', description: 'Fresh tuna with spicy mayo and cucumber, rolled in seaweed and rice.', price: 900.00, image_url: 'https://images.unsplash.com/photo-1579871701386-8d1474136f32?w=500&q=80', vendor_id: '2', restaurant_name: 'Sushi Zen Master', rating: 4.8 },
-  { id: 'fi8', name: 'Pepperoni Passion Pizza', description: 'Generous servings of spicy pepperoni and melted mozzarella.', price: 1300.00, image_url: 'https://images.unsplash.com/photo-1628840040974-9d419b6d9e48?w=500&q=80', vendor_id: '3', restaurant_name: 'Napoli Pizzeria', rating: 4.8 },
-];
-
-const RESTAURANTS = [
-  {
-    id: '1',
-    shop_name: 'Gourmet Burger Kitchen',
-    description: 'Serving up the best burgers in town since 2005. Fresh ingredients, great taste.',
-    cuisine: 'American • Burgers',
-    rating: 4.8,
-    review_count: 1250,
-    time: '15-25 min',
-    fee: 'Free',
-    logo_url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500&q=80',
-    header_image_url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8YnVyZ2VyfHx8fHx8MTY4Mzg3MjcwNg&ixlib=rb-4.0.3&q=80&w=1080',
-    featured: true,
-    is_active: true,
-    addressText: '123 Burger St, Nairobi',
-    operating_hours: [{ day_of_week: 1, open_time: '09:00', close_time: '22:00' }],
-  },
-  {
-    id: '2',
-    shop_name: 'Sushi Zen Master',
-    description: 'Authentic Japanese sushi prepared by master chefs. Experience the taste of Tokyo.',
-    cuisine: 'Japanese • Seafood',
-    rating: 4.9,
-    review_count: 980,
-    time: '20-35 min',
-    fee: '$1.99',
-    logo_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500&q=80',
-    header_image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8c3VzaGkxfHx8fHwxNjg0Njg1MTc3&ixlib=rb-4.0.3&q=80&w=1080',
-    featured: false,
-    is_active: true,
-    addressText: '456 Sushi Ave, Nairobi',
-    operating_hours: [{ day_of_week: 1, open_time: '11:00', close_time: '23:00' }],
-  },
-  {
-    id: '3',
-    shop_name: 'Napoli Pizzeria',
-    description: 'Traditional Neapolitan pizzas, baked in a wood-fired oven. A slice of Italy in every bite.',
-    cuisine: 'Italian • Pizza',
-    rating: 4.7,
-    review_count: 1500,
-    time: '25-40 min',
-    fee: '$0.99',
-    logo_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80',
-    header_image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8cGl6emF8fHx8fHwxNjg0Njg1NTA3&ixlib=rb-4.0.3&q=80&w=1080',
-    featured: true,
-    is_active: false,
-    addressText: '789 Pizza Blvd, Nairobi',
-    operating_hours: [],
-  },
-];
 
 export default function FoodItemDetailsScreen() {
   const router = useRouter();
@@ -75,8 +14,38 @@ export default function FoodItemDetailsScreen() {
   const { id } = useLocalSearchParams();
   const activeColor = Colors[colorScheme].tint;
 
-  const foodItem = FOOD_ITEMS.find(item => item.id === id);
-  const restaurant = RESTAURANTS.find(r => r.id === foodItem?.vendor_id);
+  const [foodItem, setFoodItem] = useState<any>(null);
+  const [restaurant, setRestaurant] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+        fetchFoodItemData();
+    }
+  }, [id]);
+
+  const fetchFoodItemData = async () => {
+    try {
+      setLoading(true);
+      const item = await api.getFoodItem(id as string);
+      setFoodItem(item);
+
+      const biz = await api.getBusinessProfile(item.business_id);
+      setRestaurant(biz);
+    } catch (err) {
+        console.error('Failed to fetch food item details:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   if (!foodItem || !restaurant) {
     return (
@@ -92,34 +61,39 @@ export default function FoodItemDetailsScreen() {
         {/* Header with Back and Cart Button */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color={Colors[colorScheme].text} />
+            <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
           <ThemedText type="subtitle" style={styles.screenTitle}>{foodItem.name}</ThemedText>
-          <TouchableOpacity style={styles.cartButton}>
-            <ShoppingBag size={24} color={Colors[colorScheme].text} />
+          <TouchableOpacity style={styles.cartButton} onPress={() => router.push('/cart')}>
+            <ShoppingBag size={24} color="#fff" />
             <View style={[styles.cartBadge, { backgroundColor: activeColor }]} />
           </TouchableOpacity>
         </View>
 
         {/* Food Item Image */}
-        <Image source={{ uri: foodItem.image_url }} style={styles.foodItemImage} />
+        <Image source={{ uri: foodItem.image_url || 'https://via.placeholder.com/800' }} style={styles.foodItemImage} />
 
         {/* Food Item Info */}
         <View style={[styles.infoContainer, { backgroundColor: Colors[colorScheme].background }]}>
           <ThemedText type="title" style={styles.foodItemName}>{foodItem.name}</ThemedText>
-          <TouchableOpacity onPress={() => router.push(`/restaurants/${restaurant.id}` as any)}>
-            <ThemedText style={styles.restaurantName}>{restaurant.shop_name}</ThemedText>
+          <TouchableOpacity onPress={() => router.push(`/shop/merchant/${restaurant.id}` as any)}>
+            <ThemedText style={styles.restaurantName}>{restaurant.name}</ThemedText>
           </TouchableOpacity>
           <View style={styles.ratingRow}>
-            <Star size={18} color="#FFD700" fill="#FFD700" />
-            <ThemedText style={styles.ratingText}>{foodItem.rating} ({restaurant.review_count} reviews)</ThemedText>
+            <TouchableOpacity onPress={() => router.push(`/reviews/${id}?type=food` as any)} style={styles.ratingRow}>
+                <Star size={18} color="#FFD700" fill="#FFD700" />
+                <ThemedText style={styles.ratingText}>{foodItem.rating || '0.0'} ({restaurant.review_count || 0} reviews)</ThemedText>
+            </TouchableOpacity>
           </View>
           <ThemedText style={styles.descriptionText}>{foodItem.description}</ThemedText>
 
           <View style={styles.priceRow}>
-            <ThemedText style={styles.priceText}>Ksh {foodItem.price.toFixed(2)}</ThemedText>
+            <ThemedText style={styles.priceText}>{foodItem.currency} {foodItem.price}</ThemedText>
             <View style={styles.actionButtons}>
-              <TouchableOpacity style={[styles.actionButton, { backgroundColor: Colors[colorScheme].tint }]}>
+              <TouchableOpacity 
+                style={[styles.actionButton, { backgroundColor: activeColor }]}
+                onPress={() => api.addToCart(foodItem.business_id, foodItem.id, 'food', 1)}
+              >
                 <ShoppingBag size={20} color="#fff" />
                 <ThemedText style={styles.actionButtonText}>Add to Cart</ThemedText>
               </TouchableOpacity>

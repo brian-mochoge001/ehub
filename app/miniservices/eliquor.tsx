@@ -1,11 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Search, ShoppingCart, Star, Plus, Info, Wine } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
+import { api } from '@/services/api';
 
 const LIQUOR_CATEGORIES = [
   { id: '1', name: 'Whiskey', icon: '🥃', color: '#795548' },
@@ -14,16 +15,38 @@ const LIQUOR_CATEGORIES = [
   { id: '4', name: 'Vodka', icon: '🍸', color: '#00ACC1' },
 ];
 
-const PREMIUM_PICKS = [
-  { id: '1', name: 'Johnnie Walker Black', price: 'Ksh4,000.00', volume: '750ml', rating: 4.9, image: 'https://www.montyskenya.com/wp-content/uploads/2020/05/jw-black-label-1.jpg', color: '#3E2723' },
-  { id: '2', name: 'Moët & Chandon', price: 'Ksh8,000.00', volume: '750ml', rating: 4.8, image: 'https://giftsandflowers.co.ke/wp-content/uploads/2020/11/Moet-750ml-1-1.jpg', color: '#FFF8E1' },
-];
-
 export default function LiquorScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#8D6E63'; 
   const isDark = colorScheme === 'dark';
+
+  const [liquorItems, setLiquorItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchLiquor();
+  }, []);
+
+  const fetchLiquor = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getLiquor();
+        setLiquorItems(data || []);
+    } catch (err) {
+        console.error('Failed to fetch liquor:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -33,7 +56,7 @@ export default function LiquorScreen() {
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
         <ThemedText type="subtitle">eLiquor Store</ThemedText>
-        <TouchableOpacity style={styles.cartButton}>
+        <TouchableOpacity style={styles.cartButton} onPress={() => router.push('/cart')}>
           <ShoppingCart size={24} color={Colors[colorScheme].text} />
           <View style={[styles.cartBadge, { backgroundColor: '#FF5252' }]}>
             <ThemedText style={styles.cartBadgeText}>1</ThemedText>
@@ -78,19 +101,26 @@ export default function LiquorScreen() {
           <TouchableOpacity><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
         </View>
         
-        {PREMIUM_PICKS.map(item => (
-          <TouchableOpacity key={item.id} style={[styles.premiumCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-            <Image source={{ uri: item.image }} style={styles.itemImage} />
+        {liquorItems.map(item => (
+          <TouchableOpacity 
+            key={item.id} 
+            style={[styles.premiumCard, { backgroundColor: isDark ? '#222' : '#fff' }]}
+            onPress={() => router.push(`/shop/product/${item.id}` as any)}
+          >
+            <Image source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} style={styles.itemImage} />
             <View style={styles.itemInfo}>
               <ThemedText type="defaultSemiBold" style={styles.itemName}>{item.name}</ThemedText>
-              <ThemedText style={styles.itemVolume}>{item.volume}</ThemedText>
+              <ThemedText style={styles.itemVolume}>{item.volume || '750ml'}</ThemedText>
               <View style={styles.ratingRow}>
                 <Star size={12} color="#FFD700" fill="#FFD700" />
-                <ThemedText style={styles.ratingText}>{item.rating}</ThemedText>
+                <ThemedText style={styles.ratingText}>{item.rating || '0.0'}</ThemedText>
               </View>
               <View style={styles.priceRow}>
-                <ThemedText style={[styles.itemPrice, { color: activeColor }]}>{item.price}</ThemedText>
-                <TouchableOpacity style={[styles.addBtn, { backgroundColor: activeColor }]}>
+                <ThemedText style={[styles.itemPrice, { color: activeColor }]}>{item.currency} {item.price}</ThemedText>
+                <TouchableOpacity 
+                    style={[styles.addBtn, { backgroundColor: activeColor }]}
+                    onPress={() => api.addToCart(item.business_id, item.id, 'liquor', 1)}
+                >
                   <Plus size={18} color="#fff" />
                 </TouchableOpacity>
               </View>

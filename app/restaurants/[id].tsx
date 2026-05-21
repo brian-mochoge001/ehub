@@ -1,71 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, Platform, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { api } from '@/services/api';
 import { Star, MapPin, Clock, ArrowLeft, Phone, MessageCircle, Heart } from 'lucide-react-native';
-
-const RESTAURANTS = [
-  {
-    id: '1',
-    shop_name: 'Gourmet Burger Kitchen',
-    description: 'Serving up the best burgers in town since 2005. Fresh ingredients, great taste.',
-    cuisine: 'American • Burgers',
-    rating: 4.8,
-    review_count: 1250,
-    time: '15-25 min',
-    fee: 'Free',
-    logo_url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500&q=80',
-    header_image_url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8YnVyZ2VyfHx8fHx8MTY4Mzg3MjcwNg&ixlib=rb-4.0.3&q=80&w=1080',
-    featured: true,
-    is_active: true,
-    addressText: '123 Burger St, Nairobi',
-    operating_hours: [{ day_of_week: 1, open_time: '09:00', close_time: '22:00' }],
-  },
-  {
-    id: '2',
-    shop_name: 'Sushi Zen Master',
-    description: 'Authentic Japanese sushi prepared by master chefs. Experience the taste of Tokyo.',
-    cuisine: 'Japanese • Seafood',
-    rating: 4.9,
-    review_count: 980,
-    time: '20-35 min',
-    fee: '$1.99',
-    logo_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500&q=80',
-    header_image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8c3VzaGkxfHx8fHwxNjg0Njg1MTc3&ixlib=rb-4.0.3&q=80&w=1080',
-    featured: false,
-    is_active: true,
-    addressText: '456 Sushi Ave, Nairobi',
-    operating_hours: [{ day_of_week: 1, open_time: '11:00', close_time: '23:00' }],
-  },
-  {
-    id: '3',
-    shop_name: 'Napoli Pizzeria',
-    description: 'Traditional Neapolitan pizzas, baked in a wood-fired oven. A slice of Italy in every bite.',
-    cuisine: 'Italian • Pizza',
-    rating: 4.7,
-    review_count: 1500,
-    time: '25-40 min',
-    fee: '$0.99',
-    logo_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80',
-    header_image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8cGl6emF8fHx8fHwxNjg0Njg1NTA3&ixlib=rb-4.0.3&q=80&w=1080',
-    featured: true,
-    is_active: false,
-    addressText: '789 Pizza Blvd, Nairobi',
-    operating_hours: [],
-  },
-];
-
-const MENU_ITEMS = [
-  { id: 'mi1', vendor_id: '1', name: 'Classic Beef Burger', description: 'Juicy beef patty, fresh lettuce, tomato, onion, and our special sauce.', price: 950.00, image_url: 'https://images.unsplash.com/photo-1568901346379-847e0915a111?w=500&q=80' },
-  { id: 'mi2', vendor_id: '1', name: 'Chicken Burger', description: 'Grilled chicken breast with crisp lettuce and mayo.', price: 850.00, image_url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500&q=80' },
-  { id: 'mi3', vendor_id: '2', name: 'Sushi Platter Deluxe', description: 'Assortment of fresh sashimi, nigiri, and maki rolls.', price: 2500.00, image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500&q=80' },
-  { id: 'mi4', vendor_id: '2', name: 'Spicy Tuna Roll', description: 'Fresh tuna with spicy mayo and cucumber.', price: 900.00, image_url: 'https://images.unsplash.com/photo-1579871701386-8d1474136f32?w=500&q=80' },
-  { id: 'mi5', vendor_id: '3', name: 'Margherita Pizza', description: 'Classic pizza with tomato sauce, mozzarella, and fresh basil.', price: 1200.00, image_url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&q=80' },
-  { id: 'mi6', vendor_id: '3', name: 'Pepperoni Pizza', description: 'Generous servings of spicy pepperoni and melted mozzarella.', price: 1300.00, image_url: 'https://images.unsplash.com/photo-1628840040974-9d419b6d9e48?w=500&q=80' },
-];
 
 export default function RestaurantDetailsScreen() {
   const router = useRouter();
@@ -73,7 +14,39 @@ export default function RestaurantDetailsScreen() {
   const { id } = useLocalSearchParams();
   const activeColor = Colors[colorScheme].tint;
 
-  const restaurant = RESTAURANTS.find(r => r.id === id);
+  const [restaurant, setRestaurant] = useState<any>(null);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+        fetchRestaurantData();
+    }
+  }, [id]);
+
+  const fetchRestaurantData = async () => {
+    try {
+        setLoading(true);
+        const [biz, items] = await Promise.all([
+            api.getBusinessProfile(id as string),
+            api.getBusinessProducts(id as string) // Restaurants use food items, which are listed as business products here
+        ]);
+        setRestaurant(biz);
+        setMenuItems(items || []);
+    } catch (err) {
+        console.error('Failed to fetch restaurant details:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   if (!restaurant) {
     return (
@@ -83,13 +56,11 @@ export default function RestaurantDetailsScreen() {
     );
   }
 
-  const restaurantMenuItems = MENU_ITEMS.filter(item => item.vendor_id === restaurant.id);
-
   return (
     <ThemedView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header Image */}
-        <Image source={{ uri: restaurant.header_image_url }} style={styles.headerImage} />
+        <Image source={{ uri: restaurant.banner_url || 'https://via.placeholder.com/800x400' }} style={styles.headerImage} />
 
         {/* Back Button */}
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -98,11 +69,11 @@ export default function RestaurantDetailsScreen() {
 
         {/* Restaurant Info */}
         <View style={[styles.infoContainer, { backgroundColor: Colors[colorScheme].background }]}>
-          <ThemedText type="title" style={styles.restaurantName}>{restaurant.shop_name}</ThemedText>
-          <ThemedText style={styles.cuisineText}>{restaurant.cuisine}</ThemedText>
+          <ThemedText type="title" style={styles.restaurantName}>{restaurant.name}</ThemedText>
+          <ThemedText style={styles.cuisineText}>{restaurant.miniservice_type.toUpperCase()}</ThemedText>
           <View style={styles.ratingRow}>
             <Star size={18} color="#FFD700" fill="#FFD700" />
-            <ThemedText style={styles.ratingText}>{restaurant.rating} ({restaurant.review_count} reviews)</ThemedText>
+            <ThemedText style={styles.ratingText}>{restaurant.rating || '0.0'} ({restaurant.review_count || 0} reviews)</ThemedText>
           </View>
           <ThemedText style={styles.descriptionText}>{restaurant.description}</ThemedText>
 
@@ -110,12 +81,12 @@ export default function RestaurantDetailsScreen() {
           <View style={styles.detailSection}>
             <View style={styles.detailItem}>
               <MapPin size={18} color={activeColor} />
-              <ThemedText style={styles.detailItemText}>{restaurant.addressText}</ThemedText>
+              <ThemedText style={styles.detailItemText}>{restaurant.address_id || 'Address unknown'}</ThemedText>
             </View>
             <View style={styles.detailItem}>
               <Clock size={18} color={activeColor} />
               <ThemedText style={styles.detailItemText}>
-                {restaurant.is_active ? `Open: ${restaurant.operating_hours[0]?.open_time} - ${restaurant.operating_hours[0]?.close_time}` : 'Closed'}
+                {restaurant.is_active ? 'Open Now' : 'Closed'}
               </ThemedText>
             </View>
           </View>
@@ -133,18 +104,18 @@ export default function RestaurantDetailsScreen() {
 
           {/* Menu Section */}
           <ThemedText type="subtitle" style={styles.menuTitle}>Menu</ThemedText>
-          {restaurantMenuItems.length > 0 ? (
-            restaurantMenuItems.map((item) => (
-              <ThemedView key={item.id}>
-                <ThemedView style={styles.menuItemCard}>
-                  <Image source={{ uri: item.image_url }} style={styles.menuItemImage} />
+          {menuItems.length > 0 ? (
+            menuItems.map((item) => (
+              <TouchableOpacity key={item.id} onPress={() => router.push(`/shop/product/${item.id}`)}>
+                <View style={[styles.menuItemCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}>
+                  <Image source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} style={styles.menuItemImage} />
                   <View style={styles.menuItemDetails}>
                     <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
-                    <ThemedText style={styles.menuItemDescription}>{item.description}</ThemedText>
-                    <ThemedText style={styles.menuItemPrice}>Ksh {item.price.toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.menuItemDescription} numberOfLines={2}>{item.description}</ThemedText>
+                    <ThemedText style={styles.menuItemPrice}>{item.currency} {item.price}</ThemedText>
                   </View>
-                </ThemedView>
-              </ThemedView>
+                </View>
+              </TouchableOpacity>
             ))
           ) : (
             <ThemedText style={styles.noMenuItemsText}>No menu items available for this restaurant.</ThemedText>

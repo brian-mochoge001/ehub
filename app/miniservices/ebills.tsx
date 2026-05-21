@@ -1,11 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Zap, Droplets, Wifi, Tv, Phone, CreditCard, ChevronRight, History } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
+import { api } from '@/services/api';
 
 const BILL_CATEGORIES = [
   { id: '1', name: 'Electricity', icon: Zap, color: '#FFD700' },
@@ -16,17 +17,40 @@ const BILL_CATEGORIES = [
   { id: '6', name: 'Credit Card', icon: CreditCard, color: '#607D8B' },
 ];
 
-const RECENT_BILLS = [
-  { id: '1', name: 'Kenya Power', amount: '$45.00', date: 'Oct 12, 2023', icon: Zap, color: '#FFD700' },
-  { id: '2', name: 'Nairobi Water', amount: '$12.50', date: 'Oct 10, 2023', icon: Droplets, color: '#2196F3' },
-  { id: '3', name: 'Zuku Fiber', amount: '$30.00', date: 'Oct 05, 2023', icon: Wifi, color: '#4CAF50' },
-];
-
 export default function BillsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = Colors[colorScheme].tint;
   const isDark = colorScheme === 'dark';
+
+  const [bills, setBills] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchBills();
+  }, []);
+
+  const fetchBills = async () => {
+    try {
+        setLoading(true);
+        const data = await api.getBills();
+        setBills(data || []);
+    } catch (err) {
+        console.error('Failed to fetch bills:', err);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const totalUnpaid = bills.filter(b => b.status === 'unpaid').reduce((sum, b) => sum + parseFloat(b.amount_due), 0);
+
+  if (loading) {
+    return (
+        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={activeColor} />
+        </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -45,9 +69,9 @@ export default function BillsScreen() {
         {/* Balance Card */}
         <View style={[styles.balanceCard, { backgroundColor: isDark ? '#1a5f7a' : '#0a7ea4' }]}>
           <ThemedText style={styles.balanceLabel}>Total Unpaid Amount</ThemedText>
-          <ThemedText style={styles.balanceValue}>$87.50</ThemedText>
+          <ThemedText style={styles.balanceValue}>Ksh {totalUnpaid.toFixed(2)}</ThemedText>
           <View style={styles.cardFooter}>
-            <ThemedText style={styles.dueText}>3 bills due this week</ThemedText>
+            <ThemedText style={styles.dueText}>{bills.filter(b => b.status === 'unpaid').length} bills due</ThemedText>
             <TouchableOpacity style={styles.payAllBtn}>
               <ThemedText style={styles.payAllText}>Pay All</ThemedText>
             </TouchableOpacity>
@@ -69,25 +93,29 @@ export default function BillsScreen() {
 
         {/* Recent Transactions */}
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Recent Payments</ThemedText>
+          <ThemedText type="subtitle">Your Bills</ThemedText>
           <TouchableOpacity><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
         </View>
 
-        {RECENT_BILLS.map(bill => (
+        {bills.length > 0 ? bills.map(bill => (
           <TouchableOpacity key={bill.id} style={[styles.billItem, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-            <View style={[styles.billIcon, { backgroundColor: bill.color + '15' }]}>
-              <bill.icon size={20} color={bill.color} />
+            <View style={[styles.billIcon, { backgroundColor: (BILL_CATEGORIES.find(c => c.name === bill.category)?.color || activeColor) + '15' }]}>
+               {React.createElement(BILL_CATEGORIES.find(c => c.name === bill.category)?.icon || CreditCard, { size: 20, color: BILL_CATEGORIES.find(c => c.name === bill.category)?.color || activeColor })}
             </View>
             <View style={styles.billInfo}>
-              <ThemedText type="defaultSemiBold">{bill.name}</ThemedText>
-              <ThemedText style={styles.billDate}>{bill.date}</ThemedText>
+              <ThemedText type="defaultSemiBold">{bill.biller_name}</ThemedText>
+              <ThemedText style={styles.billDate}>{new Date(bill.due_date).toLocaleDateString()}</ThemedText>
             </View>
             <View style={styles.billAmount}>
-              <ThemedText type="defaultSemiBold" style={{ color: '#4CAF50' }}>{bill.amount}</ThemedText>
+              <ThemedText type="defaultSemiBold" style={{ color: bill.status === 'paid' ? '#4CAF50' : '#FF6347' }}>{bill.currency} {bill.amount_due}</ThemedText>
               <ChevronRight size={16} color="#888" />
             </View>
           </TouchableOpacity>
-        ))}
+        )) : (
+            <View style={{ alignItems: 'center', marginTop: 20 }}>
+                <ThemedText style={{ opacity: 0.5 }}>No bills found</ThemedText>
+            </View>
+        )}
       </ScrollView>
     </ThemedView>
   );
