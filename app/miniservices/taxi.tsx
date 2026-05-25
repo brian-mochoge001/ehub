@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { ArrowLeft, MapPin, Star, Phone, MessageCircle, Navigation2, Search, X } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -8,6 +8,7 @@ import { api } from '@/services/api';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import polyline from '@mapbox/polyline';
 
 const MOCK_LOCATION_SUGGESTIONS = [
   { addressText: "Westlands, Nairobi, Kenya", latitude: -1.2988, longitude: 36.7786 },
@@ -27,6 +28,7 @@ export default function TaxiScreen() {
   const [destinationSearchInput, setDestinationSearchInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<any[]>([]);
+  const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number; longitude: number }[]>([]);
 
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
@@ -35,6 +37,21 @@ export default function TaxiScreen() {
   useEffect(() => {
     fetchNearby();
   }, []);
+
+  useEffect(() => {
+    if (!destinationLocation) {
+      setRouteCoordinates([]);
+      return;
+    }
+
+    const encoded = polyline.encode([
+      [pickupLocation.latitude, pickupLocation.longitude],
+      [destinationLocation.latitude, destinationLocation.longitude],
+    ]);
+
+    const decoded = polyline.decode(encoded).map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+    setRouteCoordinates(decoded);
+  }, [pickupLocation, destinationLocation]);
 
   const fetchNearby = async () => {
     try {
@@ -50,7 +67,7 @@ export default function TaxiScreen() {
     setSearchPhase('driver_searching');
     try {
         // Create trip request
-        const trip = await api.createTaxiTrip({
+        await api.createTaxiTrip({
             pickup_lng: pickupLocation.longitude,
             pickup_lat: pickupLocation.latitude,
             dropoff_lng: destinationLocation.longitude,
@@ -65,7 +82,7 @@ export default function TaxiScreen() {
               setDriverId(nearbyDrivers[0].id);
               setSearchPhase('tracking');
           } else {
-              alert('No drivers assigned');
+              Alert.alert('No drivers assigned');
               setSearchPhase('vehicle_selection');
           }
         }, 3000);
@@ -85,6 +102,7 @@ export default function TaxiScreen() {
           showNearby={searchPhase !== 'tracking'} 
           userLocation={pickupLocation}
           driverMode={selectedMode}
+          routeCoordinates={routeCoordinates}
         />
       </View>
 
@@ -118,14 +136,15 @@ export default function TaxiScreen() {
         <View style={[styles.suggestionsContainer, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}>
           {filteredSuggestions.map((suggestion, index) => (
             <TouchableOpacity key={index} style={styles.suggestionItem} onPress={() => { setDestinationLocation(suggestion); setDestinationSearchInput(suggestion.addressText); setShowSuggestions(false); }}>
-              <ThemedText style={styles.suggestionText}>{suggestion.addressText}</ThemedText>
+              <ThemedText style={suggestionText}>{suggestion.addressText}</ThemedText>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
       <View style={[styles.bottomSheet, { backgroundColor: colorScheme === 'light' ? '#fff' : '#1a1a1a' }]}>
-        <View style={styles.handle} />        <View style={styles.modeSwitchRow}>
+        <View style={styles.handle} />
+        <View style={styles.modeSwitchRow}>
           <TouchableOpacity
             style={[styles.modeSwitchButton, selectedMode === 'taxi' ? styles.modeSwitchButtonActive : null]}
             onPress={() => setSelectedMode('taxi')}
@@ -138,7 +157,8 @@ export default function TaxiScreen() {
           >
             <ThemedText style={[styles.modeSwitchText, selectedMode === 'motorbike' ? styles.modeSwitchTextActive : null]}>Motorbike</ThemedText>
           </TouchableOpacity>
-        </View>        {searchPhase === 'vehicle_selection' && (
+        </View>
+        {searchPhase === 'vehicle_selection' && (
           <View>
             <ThemedText type="subtitle">Choose your ride</ThemedText>
             <TouchableOpacity 

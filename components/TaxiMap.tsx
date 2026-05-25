@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT, Circle } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_DEFAULT, Circle, Polyline } from 'react-native-maps';
 import { api } from '@/services/api';
 import { Car } from 'lucide-react-native';
 
@@ -18,9 +18,10 @@ interface TaxiMapProps {
   userLocation?: { latitude: number; longitude: number };
   showNearby?: boolean;
   driverMode?: 'taxi' | 'motorbike';
+  routeCoordinates?: { latitude: number; longitude: number }[];
 }
 
-export default function TaxiMap({ driverId, userLocation, showNearby = true, driverMode = 'taxi' }: TaxiMapProps) {
+export default function TaxiMap({ driverId, userLocation, showNearby = true, driverMode = 'taxi', routeCoordinates = [] }: TaxiMapProps) {
   const [driver, setDriver] = useState<DriverLocation | null>(null);
   const [nearbyDrivers, setNearbyDrivers] = useState<DriverLocation[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +133,14 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true, dri
               </View>
             </Marker>
           ))}
+        {routeCoordinates && routeCoordinates.length > 0 && (
+          <Polyline
+            coordinates={routeCoordinates}
+            strokeColor="#0a7ea4"
+            strokeWidth={4}
+            lineCap="round"
+          />
+        )}
       </MapView>
       
       {error && (

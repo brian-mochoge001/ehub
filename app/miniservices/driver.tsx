@@ -3,24 +3,24 @@ import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Plat
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import EventSource from 'react-native-event-source';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { auth } from '@/services/auth-client';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { api } from '@/services/api';
 import { Colors } from '@/constants/theme';
-import { 
-  ArrowLeft, 
-  Navigation, 
-  Package, 
-  MapPin, 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
+import {
+  ArrowLeft,
+  Navigation,
+  Package,
+  MapPin,
+  CheckCircle2,
+  XCircle,
+  Clock,
   ShieldCheck,
-  AlertTriangle,
+  Bell,
   RefreshCw,
-  Bell
 } from 'lucide-react-native';
 
 export default function DriverScreen() {
@@ -31,13 +31,58 @@ export default function DriverScreen() {
 
   const [driverStatus, setDriverStatus] = useState<string>('offline');
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'tasks' | 'requests'>('tasks');
+
+  const queryClient = useQueryClient();
+
+  const driverTasksQuery = useQuery(['driverTasks'], api.getDriverTasks, {
+    enabled: driverStatus === 'online',
+    staleTime: 1000 * 60,
+  });
+
+  const rideRequestsQuery = useQuery(['rideRequests'], api.getRideRequests, {
+    staleTime: 1000 * 20,
+  });
+
+  const deliveryRequestsQuery = useQuery(['deliveryRequests'], api.getDeliveryRequests, {
+    staleTime: 1000 * 20,
+  });
+
+  const tasks = driverTasksQuery.data || [];
+  const requests = [...(rideRequestsQuery.data || []), ...(deliveryRequestsQuery.data || [])];
+
+  const updateStatusMutation = useMutation(api.updateStatus, {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+    },
+  });
+
+  const acceptRideMutation = useMutation(api.acceptRideRequest, {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+    },
+  });
+
+  const acceptDeliveryMutation = useMutation(api.acceptDeliveryRequest, {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+    },
+  });
+
+  const declineRideMutation = useMutation(api.declineRideRequest, {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+    },
+  });
+
+  const declineDeliveryMutation = useMutation(api.declineDeliveryRequest, {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+    },
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -50,7 +95,7 @@ export default function DriverScreen() {
 
       const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
       if (!isMounted) return;
-      
+
       const coords = { latitude: location.coords.latitude, longitude: location.coords.longitude };
       setCurrentLocation(coords);
       await api.updateLocation(coords.longitude, coords.latitude);
@@ -71,16 +116,13 @@ export default function DriverScreen() {
     };
 
     const loadDriverData = async () => {
-      setLoading(true);
       try {
         const driver = await api.getDriverLocation();
         if (!isMounted) return;
         setDriverStatus(driver.status || 'offline');
-        await fetchData();
+        await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
       } catch (error) {
         console.error('Driver dashboard load failed:', error);
-      } finally {
-        if (isMounted) setLoading(false);
       }
     };
 
@@ -88,23 +130,25 @@ export default function DriverScreen() {
       try {
         const user = auth.currentUser;
         if (!user || !isMounted) return;
-        
+
         const token = await user.getIdToken();
         if (!isMounted) return;
 
         const base = process.env.EXPO_PUBLIC_API_URL || 'https://ehubgo.onrender.com/api/v1';
         const url = `${base}/ws/driver`;
-        
+
         es = new EventSource(url, { headers: { Authorization: `Bearer ${token}` } });
-        
+
         es.onmessage = (e: any) => {
           if (!isMounted) return;
           try {
             const payload = JSON.parse(e.data);
             if (payload?.type === 'delivery_request' || payload?.type === 'ride_request' || payload?.type === 'delivery_assigned') {
-              fetchData();
+              queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
             }
-          } catch (err) {}
+          } catch (err) {
+            console.warn('Unable to parse SSE payload:', err);
+          }
         };
 
         es.onerror = (err: any) => {
@@ -130,26 +174,11 @@ export default function DriverScreen() {
         }
       }
     };
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [tasksData, rideRequestsData, deliveryRequestsData] = await Promise.all([
-        api.getDriverTasks(), 
-        api.getRideRequests(), 
-        api.getDeliveryRequests()
-      ]);
-      setTasks(tasksData || []);
-      const combined = (rideRequestsData || []).concat(deliveryRequestsData || []);
-      setRequests(combined || []);
-    } catch (error) {
-      console.error('Unable to refresh driver tasks:', error);
-    }
-  };
+  }, [queryClient]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
     setRefreshing(false);
   };
 
@@ -157,9 +186,8 @@ export default function DriverScreen() {
     setUpdatingStatus(true);
     try {
       const nextStatus = driverStatus === 'online' ? 'offline' : 'online';
-      await api.updateStatus(nextStatus);
+      await updateStatusMutation.mutateAsync(nextStatus);
       setDriverStatus(nextStatus);
-      if (nextStatus === 'online') fetchData();
     } catch (error) {
       console.error('Unable to update status:', error);
     } finally {
@@ -171,11 +199,10 @@ export default function DriverScreen() {
     setActionLoading(reqId);
     try {
       if (serviceType === 'delivery') {
-        await api.acceptDeliveryRequest(reqId);
+        await acceptDeliveryMutation.mutateAsync(reqId);
       } else {
-        await api.acceptRideRequest(reqId);
+        await acceptRideMutation.mutateAsync(reqId);
       }
-      await fetchData();
     } catch (error) {
       console.error('Accept request failed:', error);
     } finally {
@@ -187,11 +214,10 @@ export default function DriverScreen() {
     setActionLoading(reqId);
     try {
       if (serviceType === 'delivery') {
-        await api.declineDeliveryRequest(reqId);
+        await declineDeliveryMutation.mutateAsync(reqId);
       } else {
-        await api.declineRideRequest(reqId);
+        await declineRideMutation.mutateAsync(reqId);
       }
-      await fetchData();
     } catch (error) {
       console.error('Decline request failed:', error);
     } finally {
@@ -199,9 +225,11 @@ export default function DriverScreen() {
     }
   };
 
+  const isLoading = driverTasksQuery.isLoading;
+  const isFetchingRequests = rideRequestsQuery.isFetching || deliveryRequestsQuery.isFetching;
+
   return (
     <ThemedView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
@@ -212,7 +240,6 @@ export default function DriverScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Status Banner */}
       <View style={[styles.statusBanner, { backgroundColor: driverStatus === 'online' ? '#4CAF5020' : '#88820' }]}>
         <View style={styles.statusInfo}>
           <View style={[styles.statusIndicator, { backgroundColor: driverStatus === 'online' ? '#4CAF50' : '#888' }]} />
@@ -220,8 +247,8 @@ export default function DriverScreen() {
             You are currently <ThemedText style={{ fontWeight: 'bold' }}>{driverStatus.toUpperCase()}</ThemedText>
           </ThemedText>
         </View>
-        <TouchableOpacity 
-          style={[styles.toggleButton, { backgroundColor: driverStatus === 'online' ? '#FF5252' : '#4CAF50' }]} 
+        <TouchableOpacity
+          style={[styles.toggleButton, { backgroundColor: driverStatus === 'online' ? '#FF5252' : '#4CAF50' }]}
           onPress={toggleStatus}
           disabled={updatingStatus}
         >
@@ -231,88 +258,84 @@ export default function DriverScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabBar}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'tasks' && { borderBottomColor: activeColor, borderBottomWidth: 3 }]}
           onPress={() => setActiveTab('tasks')}
         >
-          <ThemedText style={[styles.tabText, activeTab === 'tasks' && { color: activeColor, fontWeight: 'bold' }]}>
-            Active Tasks ({tasks.length})
-          </ThemedText>
+          <ThemedText style={[styles.tabText, activeTab === 'tasks' && { color: activeColor, fontWeight: 'bold' }]}>Active Tasks ({tasks.length})</ThemedText>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'requests' && { borderBottomColor: activeColor, borderBottomWidth: 3 }]}
           onPress={() => setActiveTab('requests')}
         >
-          <ThemedText style={[styles.tabText, activeTab === 'requests' && { color: activeColor, fontWeight: 'bold' }]}>
-            Available ({requests.length})
-          </ThemedText>
+          <ThemedText style={[styles.tabText, activeTab === 'requests' && { color: activeColor, fontWeight: 'bold' }]}>Available ({requests.length})</ThemedText>
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[activeColor]} />}
+        refreshControl={<RefreshControl refreshing={refreshing || isFetchingRequests} onRefresh={onRefresh} colors={[activeColor]} />}
       >
         {activeTab === 'tasks' ? (
           <View style={styles.listContainer}>
-            {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={activeColor} /> : 
-             tasks.length === 0 ? (
-               <View style={styles.emptyState}>
-                 <ShieldCheck size={64} color="#ccc" />
-                 <ThemedText style={styles.emptyTitle}>No Active Tasks</ThemedText>
-                 <ThemedText style={styles.emptySub}>Switch to 'Available' to find new work.</ThemedText>
-               </View>
-             ) : (
-               tasks.map(task => (
+            {isLoading ? (
+              <ActivityIndicator style={{ marginTop: 40 }} color={activeColor} />
+            ) : tasks.length === 0 ? (
+              <View style={styles.emptyState}>
+                <ShieldCheck size={64} color="#ccc" />
+                <ThemedText style={styles.emptyTitle}>No Active Tasks</ThemedText>
+                <ThemedText style={styles.emptySub}>Switch to &apos;Available&apos; to find new work.</ThemedText>
+              </View>
+            ) : (
+              tasks.map(task => (
                 <View key={task.id} style={[styles.card, { backgroundColor: isDark ? '#222' : '#fff' }]}>
                   <View style={styles.cardHeader}>
                     <View style={styles.typeBadge}>
-                       {task.service_type === 'delivery' ? <Package size={14} color="#fff" /> : <Navigation size={14} color="#fff" />}
-                       <ThemedText style={styles.typeText}>{task.service_type || 'Ride'}</ThemedText>
+                      {task.service_type === 'delivery' ? <Package size={14} color="#fff" /> : <Navigation size={14} color="#fff" />}
+                      <ThemedText style={styles.typeText}>{task.service_type || 'Ride'}</ThemedText>
                     </View>
                     <ThemedText style={styles.priceText}>{task.currency} {task.total_amount}</ThemedText>
                   </View>
-                  
+
                   <ThemedText style={styles.customerName}>{task.customer_name}</ThemedText>
-                  
+
                   <View style={styles.locationContainer}>
                     <View style={styles.locRow}>
-                       <MapPin size={14} color="#4CAF50" />
-                       <ThemedText style={styles.locText} numberOfLines={1}>Pickup: {task.pickup_location?.latitude.toFixed(4)}, {task.pickup_location?.longitude.toFixed(4)}</ThemedText>
+                      <MapPin size={14} color="#4CAF50" />
+                      <ThemedText style={styles.locText} numberOfLines={1}>Pickup: {task.pickup_location?.latitude?.toFixed(4)}, {task.pickup_location?.longitude?.toFixed(4)}</ThemedText>
                     </View>
                     <View style={[styles.locLine, { backgroundColor: isDark ? '#444' : '#eee' }]} />
                     <View style={styles.locRow}>
-                       <MapPin size={14} color="#FF5252" />
-                       <ThemedText style={styles.locText} numberOfLines={1}>Dropoff: {task.dropoff_location?.latitude.toFixed(4)}, {task.dropoff_location?.longitude.toFixed(4)}</ThemedText>
+                      <MapPin size={14} color="#FF5252" />
+                      <ThemedText style={styles.locText} numberOfLines={1}>Dropoff: {task.dropoff_location?.latitude?.toFixed(4)}, {task.dropoff_location?.longitude?.toFixed(4)}</ThemedText>
                     </View>
                   </View>
 
                   <View style={styles.cardFooter}>
-                     <View style={styles.statusRow}>
-                        <Clock size={14} color="#888" />
-                        <ThemedText style={styles.timeText}>{task.status.toUpperCase()}</ThemedText>
-                     </View>
-                     <TouchableOpacity style={[styles.actionBtn, { backgroundColor: activeColor }]}>
-                        <ThemedText style={styles.btnText}>Open Map</ThemedText>
-                     </TouchableOpacity>
+                    <View style={styles.statusRow}>
+                      <Clock size={14} color="#888" />
+                      <ThemedText style={styles.timeText}>{task.status?.toUpperCase()}</ThemedText>
+                    </View>
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: activeColor }]}> 
+                      <ThemedText style={styles.btnText}>Open Map</ThemedText>
+                    </TouchableOpacity>
                   </View>
                 </View>
-               ))
-             )}
+              ))
+            )}
           </View>
         ) : (
           <View style={styles.listContainer}>
-             {requests.length === 0 ? (
-               <View style={styles.emptyState}>
-                 <Bell size={64} color="#ccc" />
-                 <ThemedText style={styles.emptyTitle}>Looking for requests...</ThemedText>
-                 <ThemedText style={styles.emptySub}>Requests near you will appear here instantly.</ThemedText>
-               </View>
-             ) : (
-               requests.map(req => (
+            {requests.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Bell size={64} color="#ccc" />
+                <ThemedText style={styles.emptyTitle}>Looking for requests...</ThemedText>
+                <ThemedText style={styles.emptySub}>Requests near you will appear here instantly.</ThemedText>
+              </View>
+            ) : (
+              requests.map(req => (
                 <View key={req.id} style={[styles.card, { backgroundColor: isDark ? '#222' : '#fff' }]}>
                   <View style={styles.cardHeader}>
                     <ThemedText style={styles.distanceText}>{req.distance_m ? `${Math.round(req.distance_m)}m away` : 'Near you'}</ThemedText>
@@ -320,32 +343,32 @@ export default function DriverScreen() {
                   </View>
 
                   <ThemedText style={styles.customerName}>{req.customer_name || 'Incoming Request'}</ThemedText>
-                  
+
                   <View style={styles.requestActions}>
-                     <TouchableOpacity 
-                      style={[styles.requestBtn, { backgroundColor: '#4CAF50' }]} 
+                    <TouchableOpacity
+                      style={[styles.requestBtn, { backgroundColor: '#4CAF50' }]}
                       onPress={() => acceptRequest(req.id, req.service_type)}
                       disabled={actionLoading === req.id}
-                     >
-                        {actionLoading === req.id ? <ActivityIndicator size="small" color="#fff" /> : (
-                          <>
-                            <CheckCircle2 size={18} color="#fff" />
-                            <ThemedText style={styles.btnText}>Accept</ThemedText>
-                          </>
-                        )}
-                     </TouchableOpacity>
-                     <TouchableOpacity 
-                      style={[styles.requestBtn, { backgroundColor: '#FF5252' }]} 
+                    >
+                      {actionLoading === req.id ? <ActivityIndicator size="small" color="#fff" /> : (
+                        <>
+                          <CheckCircle2 size={18} color="#fff" />
+                          <ThemedText style={styles.btnText}>Accept</ThemedText>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.requestBtn, { backgroundColor: '#FF5252' }]}
                       onPress={() => declineRequest(req.id, req.service_type)}
                       disabled={actionLoading === req.id}
-                     >
-                        <XCircle size={18} color="#fff" />
-                        <ThemedText style={styles.btnText}>Decline</ThemedText>
-                     </TouchableOpacity>
+                    >
+                      <XCircle size={18} color="#fff" />
+                      <ThemedText style={styles.btnText}>Decline</ThemedText>
+                    </TouchableOpacity>
                   </View>
                 </View>
-               ))
-             )}
+              ))
+            )}
           </View>
         )}
       </ScrollView>

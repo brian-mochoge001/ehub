@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { 
   ArrowLeft, 
   Wallet, 
