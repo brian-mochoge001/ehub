@@ -1,50 +1,54 @@
-# Welcome to your Expo app 👋
+# 📱 eHub: The Urban SuperApp
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+![Mobile App Banner](https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80)
 
-## Get started
+eHub is the all-in-one mobile companion for the modern urban dweller. It combines ride-hailing, food delivery, professional services, and a comprehensive unified wallet into a single, high-performance native application.
 
-1. Install dependencies
+## 🚀 Native Features
 
-   ```bash
-   npm install
-   ```
+### 🚕 Mobility & eTaxi
+*   **Real-time Discovery**: Find the nearest drivers with road-accurate ETAs.
+*   **Security Guard Rails**: Built-in 15-minute response triggers and driver feedback loops.
+*   **Trip Tracking**: Interactive maps and live status updates for every journey.
 
-2. Start the app
+### 🍱 Daily Services
+*   **eFood & eGrocery**: Order from your favorite local restaurants and stores.
+*   **Professional Care**: Book laundry, cleaning, and health services on the go.
+*   **Unified Wallet**: One-tap payments and bill management across all miniservices.
 
-   ```bash
-   npx expo start
-   ```
+### 🛍️ Mobile Commerce
+*   **On-the-go Mall**: Experience the full marketplace with dynamic filtering and easy checkout.
+*   **Notifications**: Real-time push alerts for order statuses, driver arrivals, and promotions.
 
-In the output, you'll find options to open the app in a
+## 🛠️ Technology Stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+| Layer | Technology |
+| :--- | :--- |
+| **Framework** | React Native (Expo) |
+| **Navigation** | Expo Router (File-based) |
+| **Icons** | Lucide React Native |
+| **Animations** | Lottie React Native |
+| **Auth** | Unified Backend Login + Google/Social |
+| **Storage** | Expo SecureStore (Encrypted) |
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🏗️ Technical Architecture
 
-## Get a fresh project
+*   **Integrated API Client**: Shared logic with the web portal ensures 100% feature parity.
+*   **Secure Session Management**: JWT-based authentication with automatic refresh and role validation.
+*   **Native Performance**: Optimized for both iOS and Android with custom-built UI components.
 
-When you're ready, run:
+## 🚀 Getting Started
 
 ```bash
-npm run reset-project
+# Install dependencies
+npm install
+
+# Start the application
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Development
+Use the **Expo Go** app on your device or an emulator to preview the app in real-time.
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+© 2026 Infinnity Developers. The city, in your pocket.
