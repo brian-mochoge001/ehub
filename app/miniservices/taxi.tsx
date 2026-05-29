@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { ArrowLeft, MapPin, Star, Phone, MessageCircle, Navigation2, Search, X } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import TaxiMap from '@/components/TaxiMap';
@@ -21,53 +22,114 @@ export default function TaxiScreen() {
   const [driverId, setDriverId] = useState<string | undefined>(undefined);
   const [searchPhase, setSearchPhase] = useState<'vehicle_selection' | 'driver_searching' | 'tracking'>('vehicle_selection');
   const [selectedMode, setSelectedMode] = useState<'taxi' | 'motorbike'>('taxi');
-  const [pickupLocation, setPickupLocation] = useState({ latitude: -1.286389, longitude: 36.817223, addressText: "Your Current Location" });
+  const [pickupLocation, setPickupLocation] = useState<{ latitude: number; longitude: number; addressText: string } | null>(null);
   const [destinationLocation, setDestinationLocation] = useState<{ addressText: string; latitude: number; longitude: number } | null>(null);
   const [nearbyDrivers, setNearbyDrivers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [destinationSearchInput, setDestinationSearchInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<any[]>([]);
-  const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [encodedPolyline, setEncodedPolyline] = useState<string | undefined>(undefined);
 
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = Colors[colorScheme].tint;
 
-  useEffect(() => {
-    fetchNearby();
+  const normalizeNearbyDrivers = (drivers: any[]) => {
+    return (drivers || [])
+      .map((entry: any) => {
+        const driver = entry?.driver ?? entry;
+        if (!driver || !driver.id) return null;
+
+        const latitude = Number(driver.latitude ?? driver.lat ?? driver.last_location?.latitude ?? driver.last_location?.lat);
+        const longitude = Number(driver.longitude ?? driver.lng ?? driver.last_location?.longitude ?? driver.last_location?.lng);
+
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+        return {
+          ...driver,
+          latitude,
+          longitude,
+          eta_minutes: entry?.eta_minutes ?? driver?.eta_minutes ?? null,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const fetchNearby = useCallback(async (latitude: number, longitude: number) => {
+    try {
+        const drivers = await api.getNearbyDrivers(longitude, latitude, 5, 5000);
+        setNearbyDrivers(normalizeNearbyDrivers(drivers));
+    } catch (err) {
+        console.error('Failed to fetch nearby drivers:', err);
+        setNearbyDrivers([]);
+    }
   }, []);
 
   useEffect(() => {
-    if (!destinationLocation) {
-      setRouteCoordinates([]);
+    (async () => {
+      try {
+        setLoading(true);
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Denied', 'Permission to access location was denied. Using default location.');
+          const defaultLoc = { latitude: -1.286389, longitude: 36.817223, addressText: "Nairobi (Default)" };
+          setPickupLocation(defaultLoc);
+          fetchNearby(defaultLoc.latitude, defaultLoc.longitude);
+          return;
+        }
+
+        let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const currentLoc = { 
+          latitude: location.coords.latitude, 
+          longitude: location.coords.longitude, 
+          addressText: "Your Current Location" 
+        };
+        setPickupLocation(currentLoc);
+        fetchNearby(currentLoc.latitude, currentLoc.longitude);
+      } catch (err) {
+        console.error('Error getting location:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [fetchNearby]);
+
+  // Fetch preview route whenever destination changes
+  useEffect(() => {
+    if (!destinationLocation || !pickupLocation) {
+      setEncodedPolyline(undefined);
       return;
     }
 
-    const encoded = polyline.encode([
-      [pickupLocation.latitude, pickupLocation.longitude],
-      [destinationLocation.latitude, destinationLocation.longitude],
-    ]);
+    const fetchPreviewRoute = async () => {
+      try {
+        const response = await api.getFoodDeliveryEstimate({
+          latitude: destinationLocation.latitude,
+          longitude: destinationLocation.longitude,
+          radius: 5000
+        });
+        if (response.polyline) {
+          setEncodedPolyline(response.polyline);
+        }
+      } catch (err) {
+        console.error('Failed to fetch preview route:', err);
+      }
+    };
 
-    const decoded = polyline.decode(encoded).map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-    setRouteCoordinates(decoded);
-  }, [pickupLocation, destinationLocation]);
-
-  const fetchNearby = async () => {
-    try {
-        const drivers = await api.getNearbyDrivers(pickupLocation.longitude, pickupLocation.latitude);
-        setNearbyDrivers(drivers || []);
-    } catch (err) {
-        console.error(err);
-    }
-  };
+    fetchPreviewRoute();
+  }, [destinationLocation, pickupLocation]);
 
   const handleSearchForDriver = async () => {
-    if (!destinationLocation) return;
+    if (!destinationLocation || !pickupLocation) return;
+    if (nearbyDrivers.length === 0) {
+      Alert.alert('No drivers available', 'There are no drivers online in your area right now.');
+      return;
+    }
     setSearchPhase('driver_searching');
     try {
         // Create trip request
-        await api.createTaxiTrip({
+        const response = await api.createTaxiTrip({
             pickup_lng: pickupLocation.longitude,
             pickup_lat: pickupLocation.latitude,
             dropoff_lng: destinationLocation.longitude,
@@ -76,6 +138,10 @@ export default function TaxiScreen() {
             vehicle_type: selectedMode,
         });
         
+        if (response.polyline) {
+          setEncodedPolyline(response.polyline);
+        }
+
         // Polling logic would go here. For now, simulate assignment.
         setTimeout(() => {
           if (nearbyDrivers.length > 0) {
@@ -92,18 +158,30 @@ export default function TaxiScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={activeColor} />
+        <ThemedText style={{ marginTop: 10 }}>Getting your location...</ThemedText>
+      </ThemedView>
+    );
+  }
+
   const currentDriver = nearbyDrivers.find(d => d.id === driverId);
+  const hasNearbyDrivers = nearbyDrivers.length > 0;
 
   return (
     <ThemedView style={styles.container}>
       <View style={styles.mapBackground}>
-        <TaxiMap 
-          driverId={driverId} 
-          showNearby={searchPhase !== 'tracking'} 
-          userLocation={pickupLocation}
-          driverMode={selectedMode}
-          routeCoordinates={routeCoordinates}
-        />
+        {pickupLocation && (
+          <TaxiMap 
+            driverId={driverId} 
+            showNearby={searchPhase !== 'tracking'} 
+            userLocation={pickupLocation}
+            driverMode={selectedMode}
+            encodedPolyline={encodedPolyline}
+          />
+        )}
       </View>
 
       <View style={styles.floatingHeader}>
@@ -136,7 +214,7 @@ export default function TaxiScreen() {
         <View style={[styles.suggestionsContainer, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}>
           {filteredSuggestions.map((suggestion, index) => (
             <TouchableOpacity key={index} style={styles.suggestionItem} onPress={() => { setDestinationLocation(suggestion); setDestinationSearchInput(suggestion.addressText); setShowSuggestions(false); }}>
-              <ThemedText style={suggestionText}>{suggestion.addressText}</ThemedText>
+              <ThemedText style={styles.suggestionText}>{suggestion.addressText}</ThemedText>
             </TouchableOpacity>
           ))}
         </View>
@@ -161,9 +239,15 @@ export default function TaxiScreen() {
         {searchPhase === 'vehicle_selection' && (
           <View>
             <ThemedText type="subtitle">Choose your ride</ThemedText>
+            {!hasNearbyDrivers ? (
+              <View style={styles.emptyStateCard}>
+                <ThemedText style={{ fontWeight: '600' }}>No drivers available right now</ThemedText>
+                <ThemedText style={styles.emptyStateSubtitle}>Try again in a few minutes or adjust your pickup area.</ThemedText>
+              </View>
+            ) : null}
             <TouchableOpacity 
-                disabled={!destinationLocation}
-                style={[styles.mainActionBtn, { backgroundColor: destinationLocation ? activeColor : '#ccc', marginTop: 20 }]} 
+                disabled={!destinationLocation || !hasNearbyDrivers}
+                style={[styles.mainActionBtn, { backgroundColor: destinationLocation && hasNearbyDrivers ? activeColor : '#ccc', marginTop: 20 }]} 
                 onPress={handleSearchForDriver}
             >
               <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Confirm Ride</ThemedText>
@@ -213,4 +297,6 @@ const styles = StyleSheet.create({
   modeSwitchTextActive: { color: '#fff' },
   mainActionBtn: { height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
   actionBtn: { width: 45, height: 45, borderRadius: 22.5, justifyContent: 'center', alignItems: 'center' },
+  emptyStateCard: { marginTop: 12, padding: 14, borderRadius: 12, backgroundColor: 'rgba(128,128,128,0.08)' },
+  emptyStateSubtitle: { marginTop: 6, opacity: 0.65, fontSize: 12 },
 });

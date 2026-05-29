@@ -23,7 +23,7 @@ const FEATURED_SERVICES = [
   {
     id: 'taxi',
     name: 'eTaxi',
-    image: 'https://i.pinimg.com/736x/75/93/9e/75939ef8d60f2c307acb022e1af0de96.jpg',
+    image: 'https://preview.free3d.com/img/2013/03/2212622763921769942/eues7ix5.jpg',
     description: 'Safe rides',
     route: '/miniservices/taxi',
   },

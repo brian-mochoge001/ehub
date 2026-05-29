@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Platform, RefreshControl } from 'react-native';
+import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator, Platform, RefreshControl, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import EventSource from 'react-native-event-source';
@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { auth } from '@/services/auth-client';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import TaxiMap from '@/components/TaxiMap';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { api } from '@/services/api';
 import { Colors } from '@/constants/theme';
@@ -21,6 +22,8 @@ import {
   ShieldCheck,
   Bell,
   RefreshCw,
+  X,
+  Phone,
 } from 'lucide-react-native';
 
 export default function DriverScreen() {
@@ -35,52 +38,65 @@ export default function DriverScreen() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'tasks' | 'requests'>('tasks');
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [showMap, setShowMap] = useState(false);
 
   const queryClient = useQueryClient();
 
-  const driverTasksQuery = useQuery(['driverTasks'], api.getDriverTasks, {
+  const driverTasksQuery = useQuery({
+    queryKey: ['driverTasks'],
+    queryFn: api.getDriverTasks,
     enabled: driverStatus === 'online',
     staleTime: 1000 * 60,
   });
 
-  const rideRequestsQuery = useQuery(['rideRequests'], api.getRideRequests, {
+  const rideRequestsQuery = useQuery({
+    queryKey: ['rideRequests'],
+    queryFn: api.getRideRequests,
     staleTime: 1000 * 20,
   });
 
-  const deliveryRequestsQuery = useQuery(['deliveryRequests'], api.getDeliveryRequests, {
+  const deliveryRequestsQuery = useQuery({
+    queryKey: ['deliveryRequests'],
+    queryFn: api.getDeliveryRequests,
     staleTime: 1000 * 20,
   });
 
   const tasks = driverTasksQuery.data || [];
   const requests = [...(rideRequestsQuery.data || []), ...(deliveryRequestsQuery.data || [])];
 
-  const updateStatusMutation = useMutation(api.updateStatus, {
+  const updateStatusMutation = useMutation({
+    mutationFn: api.updateStatus,
     onSuccess: async () => {
-      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+      await queryClient.invalidateQueries({ queryKey: ['driverTasks', 'rideRequests', 'deliveryRequests'] });
     },
   });
 
-  const acceptRideMutation = useMutation(api.acceptRideRequest, {
+  const acceptRideMutation = useMutation({
+    mutationFn: api.acceptRideRequest,
     onSuccess: async () => {
-      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+      await queryClient.invalidateQueries({ queryKey: ['driverTasks', 'rideRequests', 'deliveryRequests'] });
     },
   });
 
-  const acceptDeliveryMutation = useMutation(api.acceptDeliveryRequest, {
+  const acceptDeliveryMutation = useMutation({
+    mutationFn: api.acceptDeliveryRequest,
     onSuccess: async () => {
-      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+      await queryClient.invalidateQueries({ queryKey: ['driverTasks', 'rideRequests', 'deliveryRequests'] });
     },
   });
 
-  const declineRideMutation = useMutation(api.declineRideRequest, {
+  const declineRideMutation = useMutation({
+    mutationFn: api.declineRideRequest,
     onSuccess: async () => {
-      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+      await queryClient.invalidateQueries({ queryKey: ['driverTasks', 'rideRequests', 'deliveryRequests'] });
     },
   });
 
-  const declineDeliveryMutation = useMutation(api.declineDeliveryRequest, {
+  const declineDeliveryMutation = useMutation({
+    mutationFn: api.declineDeliveryRequest,
     onSuccess: async () => {
-      await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+      await queryClient.invalidateQueries({ queryKey: ['driverTasks', 'rideRequests', 'deliveryRequests'] });
     },
   });
 
@@ -120,7 +136,7 @@ export default function DriverScreen() {
         const driver = await api.getDriverLocation();
         if (!isMounted) return;
         setDriverStatus(driver.status || 'offline');
-        await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+        await queryClient.invalidateQueries({ queryKey: ['driverTasks', 'rideRequests', 'deliveryRequests'] });
       } catch (error) {
         console.error('Driver dashboard load failed:', error);
       }
@@ -144,7 +160,7 @@ export default function DriverScreen() {
           try {
             const payload = JSON.parse(e.data);
             if (payload?.type === 'delivery_request' || payload?.type === 'ride_request' || payload?.type === 'delivery_assigned') {
-              queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+              queryClient.invalidateQueries({ queryKey: ['driverTasks', 'rideRequests', 'deliveryRequests'] });
             }
           } catch (err) {
             console.warn('Unable to parse SSE payload:', err);
@@ -178,7 +194,7 @@ export default function DriverScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries(['driverTasks', 'rideRequests', 'deliveryRequests']);
+    await queryClient.invalidateQueries({ queryKey: ['driverTasks', 'rideRequests', 'deliveryRequests'] });
     setRefreshing(false);
   };
 
@@ -223,6 +239,11 @@ export default function DriverScreen() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleOpenMap = (task: any) => {
+    setSelectedTask(task);
+    setShowMap(true);
   };
 
   const isLoading = driverTasksQuery.isLoading;
@@ -318,7 +339,10 @@ export default function DriverScreen() {
                       <Clock size={14} color="#888" />
                       <ThemedText style={styles.timeText}>{task.status?.toUpperCase()}</ThemedText>
                     </View>
-                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: activeColor }]}> 
+                    <TouchableOpacity 
+                      style={[styles.actionBtn, { backgroundColor: activeColor }]}
+                      onPress={() => handleOpenMap(task)}
+                    > 
                       <ThemedText style={styles.btnText}>Open Map</ThemedText>
                     </TouchableOpacity>
                   </View>
@@ -372,6 +396,33 @@ export default function DriverScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Navigation Modal */}
+      <Modal visible={showMap} animationType="slide" presentationStyle="pageSheet">
+        <View style={{ flex: 1 }}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowMap(false)} style={styles.modalCloseBtn}>
+              <X size={24} color={Colors[colorScheme].text} />
+            </TouchableOpacity>
+            <ThemedText type="defaultSemiBold">Navigation</ThemedText>
+            <View style={{ width: 40 }} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <TaxiMap 
+              userLocation={selectedTask?.pickup_location}
+              encodedPolyline={selectedTask?.polyline}
+              showNearby={false}
+              driverMode="motorbike"
+            />
+          </View>
+          <View style={[styles.modalFooter, { backgroundColor: isDark ? '#1a1a1a' : '#fff' }]}>
+             <ThemedText style={{ marginBottom: 10 }}>Customer: {selectedTask?.customer_name}</ThemedText>
+             <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#4CAF50' }]}>
+                <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>Arrived at Pickup</ThemedText>
+             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -413,4 +464,8 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 60, opacity: 0.5 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 15 },
   emptySub: { fontSize: 14, textAlign: 'center', marginTop: 5, paddingHorizontal: 40 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(128,128,128,0.1)' },
+  modalCloseBtn: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  modalFooter: { padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, elevation: 10 },
+  mainActionBtn: { height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
 });

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { signUp, auth } from '@/services/auth-client';
-import { updateProfile } from 'firebase/auth';
+import { signUp } from '@/services/auth-client';
 import { useRouter } from 'expo-router';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react-native';
 import { Colors } from '@/constants/theme';
@@ -35,9 +34,6 @@ export function SignupForm() {
             if (error) {
                 setError(error.message || 'Signup failed');
             } else {
-                if (auth.currentUser) {
-                    await updateProfile(auth.currentUser, { displayName: name });
-                }
                 router.replace('/(tabs)');
             }
         } catch (e) {

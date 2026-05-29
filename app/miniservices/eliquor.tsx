@@ -1,42 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
-import { ArrowLeft, Search, ShoppingCart, Star, Plus, Info, Wine } from 'lucide-react-native';
+import { StyleSheet, View, ScrollView, TextInput, TouchableOpacity, Image, ActivityIndicator, Alert, Modal } from 'react-native';
+import { ArrowLeft, Search, MapPin, ChevronRight, Beer, Map, X } from 'lucide-react-native';
+import * as Location from 'expo-location';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
-
-const LIQUOR_CATEGORIES = [
-  { id: '1', name: 'Whiskey', icon: '🥃', color: '#795548' },
-  { id: '2', name: 'Wine', icon: '🍷', color: '#AD1457' },
-  { id: '3', name: 'Beer', icon: '🍺', color: '#FFA000' },
-  { id: '4', name: 'Vodka', icon: '🍸', color: '#00ACC1' },
-];
+import TaxiMap from '@/components/TaxiMap';
 
 export default function LiquorScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
-  const activeColor = '#8D6E63'; 
+  const activeColor = '#FF9800'; // Liquor Amber
   const isDark = colorScheme === 'dark';
 
-  const [liquorItems, setLiquorItems] = useState<any[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<{latitude: number, longitude: number} | undefined>(undefined);
+  const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchLiquor();
+    fetchNearbyStores();
   }, []);
 
-  const fetchLiquor = async () => {
+  const fetchNearbyStores = async () => {
     try {
-        setLoading(true);
-        const data = await api.getLiquor();
-        setLiquorItems(data || []);
-    } catch (err) {
-        console.error('Failed to fetch liquor:', err);
-    } finally {
+      setLoading(true);
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location access is needed to find nearby liquor stores.');
         setLoading(false);
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      setUserLocation({ latitude, longitude });
+
+      // Note: We'll update the backend to support 'liquor' type in SearchGroceryStores logic
+      // or a dedicated SearchLiquorStores logic. For now, using the shared business logic.
+      const data = await api.getBusinesses({ type: 'liquor', limit: 20 });
+      setStores(data || []);
+    } catch (err) {
+      console.error('Failed to fetch stores:', err);
+      setStores([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -44,132 +55,83 @@ export default function LiquorScreen() {
     return (
         <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
             <ActivityIndicator size="large" color={activeColor} />
+            <ThemedText style={{ marginTop: 10 }}>Finding stores...</ThemedText>
         </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
-        <ThemedText type="subtitle">eLiquor Store</ThemedText>
-        <TouchableOpacity style={styles.cartButton} onPress={() => router.push('/cart')}>
-          <ShoppingCart size={24} color={Colors[colorScheme].text} />
-          <View style={[styles.cartBadge, { backgroundColor: '#FF5252' }]}>
-            <ThemedText style={styles.cartBadgeText}>1</ThemedText>
-          </View>
-        </TouchableOpacity>
+        <ThemedText type="subtitle" style={{marginLeft: 15}}>eLiquor Delivery</ThemedText>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Search */}
         <View style={[styles.searchContainer, { backgroundColor: isDark ? '#2a2a2a' : '#f0f0f0' }]}>
           <Search size={20} color="#888" style={styles.searchIcon} />
-          <TextInput 
-            placeholder="Search brands, types..." 
-            placeholderTextColor="#888"
-            style={[styles.searchInput, { color: Colors[colorScheme].text }]}
-          />
+          <TextInput placeholder="Search drinks or stores..." placeholderTextColor="#888" style={[styles.searchInput, { color: Colors[colorScheme].text }]} />
         </View>
 
-        {/* Age Warning */}
-        <View style={[styles.warningBox, { backgroundColor: isDark ? '#3E2723' : '#EFEBE9' }]}>
-          <Info size={18} color={activeColor} />
-          <ThemedText style={styles.warningText}>You must be over 18 to order. Delivery personnel will check ID.</ThemedText>
+        <View style={styles.promoCard}>
+           <ThemedText style={styles.promoTitle}>Boda Delivery</ThemedText>
+           <ThemedText style={styles.promoSub}>Cold drinks delivered in under 30 mins.</ThemedText>
         </View>
 
-        {/* Categories */}
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Categories</ThemedText>
-          <TouchableOpacity><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
+          <ThemedText type="subtitle">Liquor Stores Near You</ThemedText>
         </View>
-        <View style={styles.catGrid}>
-          {LIQUOR_CATEGORIES.map(cat => (
-            <TouchableOpacity key={cat.id} style={[styles.catCard, { backgroundColor: isDark ? '#222' : '#fff' }]}>
-              <ThemedText style={styles.catEmoji}>{cat.icon}</ThemedText>
-              <ThemedText type="defaultSemiBold" style={styles.catName}>{cat.name}</ThemedText>
+
+        {(stores || []).length > 0 ? (stores || []).map((store, index) => {
+          return (
+            <TouchableOpacity 
+              key={store.id || index} 
+              style={[styles.storeCard, { backgroundColor: isDark ? '#222' : '#fff' }]}
+              onPress={() => router.push(`/shop/merchant/${store.id}` as any)}
+            >
+              <View style={styles.storeIcon}>
+                  <Beer size={24} color={activeColor} />
+              </View>
+              <View style={styles.storeInfo}>
+                <ThemedText type="defaultSemiBold">{store.name}</ThemedText>
+                <ThemedText style={styles.distanceText}>Open now • Fast Boda delivery</ThemedText>
+              </View>
+              <ChevronRight size={20} color="#888" />
             </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Premium Picks */}
-        <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Premium Picks</ThemedText>
-          <TouchableOpacity><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
-        </View>
-        
-        {liquorItems.map(item => (
-          <TouchableOpacity 
-            key={item.id} 
-            style={[styles.premiumCard, { backgroundColor: isDark ? '#222' : '#fff' }]}
-            onPress={() => router.push(`/shop/product/${item.id}` as any)}
-          >
-            <Image source={{ uri: item.image_url || 'https://via.placeholder.com/150' }} style={styles.itemImage} />
-            <View style={styles.itemInfo}>
-              <ThemedText type="defaultSemiBold" style={styles.itemName}>{item.name}</ThemedText>
-              <ThemedText style={styles.itemVolume}>{item.volume || '750ml'}</ThemedText>
-              <View style={styles.ratingRow}>
-                <Star size={12} color="#FFD700" fill="#FFD700" />
-                <ThemedText style={styles.ratingText}>{item.rating || '0.0'}</ThemedText>
-              </View>
-              <View style={styles.priceRow}>
-                <ThemedText style={[styles.itemPrice, { color: activeColor }]}>{item.currency} {item.price}</ThemedText>
-                <TouchableOpacity 
-                    style={[styles.addBtn, { backgroundColor: activeColor }]}
-                    onPress={() => api.addToCart(item.business_id, item.id, 'liquor', 1)}
-                >
-                  <Plus size={18} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-
-        {/* Promo */}
-        <View style={[styles.promoCard, { backgroundColor: '#3E2723' }]}>
-          <View style={{ flex: 1 }}>
-            <ThemedText style={styles.promoTitle}>Weekend Specials</ThemedText>
-            <ThemedText style={styles.promoSubtitle}>Up to 15% off on selected craft beers and wines.</ThemedText>
+          );
+        }) : (
+          <View style={{ alignItems: 'center', marginTop: 40, opacity: 0.5 }}>
+            <Beer size={48} color="#ccc" />
+            <ThemedText style={{ marginTop: 10 }}>No liquor stores available nearby</ThemedText>
           </View>
-          <Wine size={90} color="#D7CCC8" style={{ opacity: 0.3, bottom: 0, right: -30, position: 'absolute' }}/>
-        </View>
+        )}
       </ScrollView>
+
+      <View style={styles.ageWarning}>
+         <ThemedText style={styles.warningText}>Must be 18+ to order. ID verification required on delivery.</ThemedText>
+      </View>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 50 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 },
   backButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(128,128,128,0.1)' },
-  cartButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  cartBadge: { position: 'absolute', top: 0, right: 0, width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  cartBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: { paddingBottom: 100 },
   searchContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 15, paddingHorizontal: 15, height: 50, marginHorizontal: 20, marginBottom: 20 },
   searchIcon: { marginRight: 10 },
   searchInput: { flex: 1, fontSize: 14 },
-  warningBox: { flexDirection: 'row', marginHorizontal: 20, padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 25 },
-  warningText: { flex: 1, marginLeft: 10, fontSize: 11, opacity: 0.7 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 },
-  catGrid: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 30 },
-  catCard: { flex: 1, paddingHorizontal: 6, paddingTop: 12, paddingBottom: 8, borderRadius: 20, alignItems: 'center', elevation: 2, shadowOpacity: 0.05 },
-  catEmoji: { fontSize: 24, marginBottom: 8 },
-  catName: { fontSize: 10 },
-  premiumCard: { flexDirection: 'row', marginHorizontal: 20, padding: 15, borderRadius: 25, marginBottom: 15, elevation: 2, shadowOpacity: 0.05 },
-  itemImage: { width: 100, height: 120, borderRadius: 15 },
-  itemInfo: { flex: 1, marginLeft: 15, justifyContent: 'center' },
-  itemName: { fontSize: 16 },
-  itemVolume: { fontSize: 12, opacity: 0.5, marginVertical: 4 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  ratingText: { fontSize: 11, opacity: 0.6, marginLeft: 4 },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemPrice: { fontSize: 18, fontWeight: 'bold' },
-  addBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  promoCard: { flexDirection: 'row', marginHorizontal: 20, padding: 25, borderRadius: 25, alignItems: 'center', marginTop: 10 },
-  promoTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
-  promoSubtitle: { color: '#D7CCC8', fontSize: 12 },
+  promoCard: { marginHorizontal: 20, backgroundColor: '#333', padding: 20, borderRadius: 20, marginBottom: 25 },
+  promoTitle: { color: '#FF9800', fontWeight: 'bold', fontSize: 18 },
+  promoSub: { color: '#fff', fontSize: 12, marginTop: 5 },
+  sectionHeader: { paddingHorizontal: 20, marginBottom: 15 },
+  storeCard: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, padding: 15, borderRadius: 15, marginBottom: 15, elevation: 2, shadowOpacity: 0.05 },
+  storeIcon: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(255, 152, 0, 0.1)', justifyContent: 'center', alignItems: 'center' },
+  storeInfo: { flex: 1, marginLeft: 15 },
+  distanceText: { fontSize: 12, opacity: 0.5 },
+  ageWarning: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#000', padding: 10, alignItems: 'center' },
+  warningText: { color: '#fff', fontSize: 10, fontWeight: '600' },
 });

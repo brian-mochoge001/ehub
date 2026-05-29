@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TextInput, TouchableOpacity, Image, FlatList, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, TextInput, TouchableOpacity, Image, FlatList, ActivityIndicator, Alert } from 'react-native';
+import * as Location from 'expo-location';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useRouter } from 'expo-router';
@@ -27,29 +28,68 @@ export default function FoodScreen() {
   const [motorbikeDrivers, setMotorbikeDrivers] = useState<any[]>([]);
   const [deliveryEstimate, setDeliveryEstimate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  const homeLocation = { latitude: -1.286389, longitude: 36.817223 };
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
-    fetchFoodData();
+    fetchInitialData();
   }, []);
 
-  const fetchFoodData = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const [items, bizs, drivers, estimate] = await Promise.all([
+      
+      // Get Real Location
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      let locationToUse = { latitude: -1.286389, longitude: 36.817223 }; // Default Nairobi
+      
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        locationToUse = { latitude: location.coords.latitude, longitude: location.coords.longitude };
+        setUserLocation(locationToUse);
+      } else {
+        Alert.alert('Permission Denied', 'Using default location.');
+      }
+
+      const [itemsResult, bizsResult, driversResult, estimateResult] = await Promise.allSettled([
         api.getAllFoodItems(),
         api.getBusinesses({ type: 'restaurant', limit: 30 }),
-        api.getNearbyMotorbikeDrivers(homeLocation.longitude, homeLocation.latitude, 10),
-        api.getFoodDeliveryEstimate({ latitude: homeLocation.latitude, longitude: homeLocation.longitude, radius: 60000 }),
+        api.getNearbyMotorbikeDrivers(locationToUse.longitude, locationToUse.latitude, 10),
+        api.getFoodDeliveryEstimate({ latitude: locationToUse.latitude, longitude: locationToUse.longitude, radius: 5000 }),
       ]);
 
-      setFoodItems(items || []);
-      setRestaurants(bizs || []);
-      setMotorbikeDrivers(drivers || []);
-      setDeliveryEstimate(estimate);
+      if (itemsResult.status === 'fulfilled') {
+        setFoodItems(itemsResult.value || []);
+      } else {
+        console.error('Failed to fetch food items:', itemsResult.reason);
+        setFoodItems([]);
+      }
+
+      if (bizsResult.status === 'fulfilled') {
+        setRestaurants(bizsResult.value || []);
+      } else {
+        console.error('Failed to fetch restaurants:', bizsResult.reason);
+        setRestaurants([]);
+      }
+
+      if (driversResult.status === 'fulfilled') {
+        setMotorbikeDrivers(driversResult.value || []);
+      } else {
+        console.error('Failed to fetch nearby drivers:', driversResult.reason);
+        setMotorbikeDrivers([]);
+      }
+
+      if (estimateResult.status === 'fulfilled') {
+        setDeliveryEstimate(estimateResult.value);
+      } else {
+        console.error('Failed to fetch delivery estimate:', estimateResult.reason);
+        setDeliveryEstimate(null);
+      }
     } catch (err) {
       console.error('Failed to fetch food data:', err);
+      setFoodItems([]);
+      setRestaurants([]);
+      setMotorbikeDrivers([]);
+      setDeliveryEstimate(null);
     } finally {
       setLoading(false);
     }
@@ -239,6 +279,12 @@ export default function FoodScreen() {
         renderItem={renderFoodItem}
         numColumns={2}
         ListHeaderComponent={renderHeader}
+        ListEmptyComponent={
+          <View style={styles.emptyStateContainer}>
+            <ThemedText type="subtitle">No food items available right now</ThemedText>
+            <ThemedText style={styles.emptyStateSubtitle}>Check back later or try a different area.</ThemedText>
+          </View>
+        }
         contentContainerStyle={styles.flatListContent}
         columnWrapperStyle={styles.columnWrapper}
       />
@@ -289,4 +335,6 @@ const styles = StyleSheet.create({
   foodItemPriceRating: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   ratingRow: { flexDirection: 'row', alignItems: 'center' },
   ratingText: { fontSize: 10, marginLeft: 3, color: '#888' },
+  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, paddingHorizontal: 20 },
+  emptyStateSubtitle: { marginTop: 8, textAlign: 'center', opacity: 0.65 },
 });

@@ -74,19 +74,15 @@ export default function HostScreen() {
     }
     setIsBookingLoading(true);
     try {
-      // Assuming backend calculates total price, or we do it here.
       const bookingDetails = {
         property_id: stayId,
         check_in_date: checkInDate.toISOString(),
         check_out_date: checkOutDate.toISOString(),
         number_of_guests: numberOfGuests,
-        total_amount: totalPrice.toString(), // API expects string for amount
-        currency: stays.find(s => s.id === stayId)?.currency || 'Ksh' // Get currency from stay data
       };
-      await api.createBooking(bookingDetails);
-      alert("Booking successful! Redirecting to your bookings.");
-      // Navigate to a booking confirmation or user's bookings page
-      router.push('/bookings'); 
+
+      await api.bookProperty(bookingDetails);
+      alert("Booking successful!");
     } catch (err: any) {
       console.error('Booking failed:', err);
       alert(`Booking failed: ${err.message || 'Please try again.'}`);
@@ -96,7 +92,7 @@ export default function HostScreen() {
   };
 
   // Placeholder for date calculation logic
-  const calculateTotalPrice = (stayPricePerNight: number, checkIn: Date, checkOut: Date) => {
+  const calculateTotalPrice = (stayPricePerNight: number, checkIn: Date | null, checkOut: Date | null) => {
     if (!checkIn || !checkOut) return 0;
     const diffTime = Math.abs(checkOut.getTime() - checkIn.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -128,7 +124,7 @@ export default function HostScreen() {
             onChangeText={setSearchQuery}
           />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/wishlist')}> {/* Changed to wishlist for clarity */}
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/cart')}>
           <HeartIcon size={20} color={'#FF385C'} />
         </TouchableOpacity>
       </View>

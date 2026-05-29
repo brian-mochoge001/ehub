@@ -1,162 +1,107 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { 
-  getAuth, 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut as firebaseSignOut,
-  GoogleAuthProvider,
-  signInWithCredential,
-  User,
-  initializeAuth,
-  getReactNativePersistence
-} from 'firebase/auth';
-import { useState, useEffect } from 'react';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import { useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { api } from './api';
 
-WebBrowser.maybeCompleteAuthSession();
-
-// Your Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+const generateUsername = (email: string) => {
+    const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+    if (baseUsername.length >= 3) return baseUsername;
+    return `${baseUsername || 'user'}user`;
 };
 
-// Custom storage for Firebase Auth using Expo SecureStore
-// SecureStore keys only allow alphanumeric characters, ".", "-", and "_"
-const sanitizeKey = (key: string) => {
-  if (typeof key !== 'string' || !key) return 'firebase_auth_key';
-  // Replace all non-alphanumeric characters with underscores for maximum compatibility
-  // and ensure the key is not too long (limit to 128 chars)
-  return key.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 128);
+export const auth = {
+    currentUser: null,
 };
-
-const secureStorePersistence = {
-  getItem: (key: string) => SecureStore.getItemAsync(sanitizeKey(key)),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(sanitizeKey(key), value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(sanitizeKey(key)),
-};
-
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-
-// Initialize Auth with SecureStore persistence
-// We use try-catch to avoid "auth/already-initialized" error during HMR
-let firebaseAuth;
-try {
-    firebaseAuth = initializeAuth(app, {
-        persistence: getReactNativePersistence(secureStorePersistence)
-    });
-} catch (error) {
-    firebaseAuth = getAuth(app);
-}
-
-export const auth = firebaseAuth;
 
 export const authClient = {
     signIn: {
         email: async ({ email, password }: any) => {
             try {
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                return { data: userCredential.user, error: null };
+                const response = await api.login({ email, password });
+                if (!response?.token) {
+                    return { data: null, error: { message: 'Login failed: no token returned' } };
+                }
+
+                await SecureStore.setItemAsync('backend_token', response.token);
+                return {
+                    data: {
+                        user: {
+                            email: response.email,
+                            user_id: response.user_id,
+                            roles: response.roles,
+                        },
+                    },
+                    error: null,
+                };
             } catch (error: any) {
-                return { data: null, error: { message: error.message } };
+                const message = error?.response?.data?.error || error?.message || 'Login failed';
+                return { data: null, error: { message } };
             }
         },
-        // We will export a hook for Google login instead of a direct method
-        // because expo-auth-session requires being called within a component.
     },
     signUp: {
         email: async ({ email, password, name }: any) => {
             try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                return { data: userCredential.user, error: null };
+                const response = await api.register({
+                    email,
+                    password,
+                    username: generateUsername(email),
+                    first_name: name || '',
+                    role: 'user',
+                });
+
+                if (!response?.token) {
+                    return { data: null, error: { message: 'Signup failed: no token returned' } };
+                }
+
+                await SecureStore.setItemAsync('backend_token', response.token);
+                return {
+                    data: {
+                        user: {
+                            email: response.email,
+                            user_id: response.user_id,
+                            roles: response.roles,
+                        },
+                    },
+                    error: null,
+                };
             } catch (error: any) {
-                return { data: null, error: { message: error.message } };
+                const message = error?.response?.data?.error || error?.message || 'Signup failed';
+                return { data: null, error: { message } };
             }
-        }
+        },
     },
     signOut: async () => {
-        return await firebaseSignOut(auth);
-    }
+        await SecureStore.deleteItemAsync('backend_token');
+        return true;
+    },
+    getToken: async () => {
+        return await SecureStore.getItemAsync('backend_token');
+    },
 };
 
 export const { signIn, signUp, signOut } = authClient;
 
-/**
- * Custom hook to manage Firebase auth session
- */
 export function useSession() {
-    const [session, setSession] = useState<{ user: User } | null>(null);
+    const [session, setSession] = useState<{ user: any } | null>(null);
     const [isPending, setIsPending] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                setSession({ user: user as User });
-            } else {
-                setSession(null);
-            }
-            setIsPending(false);
-        });
+        let isMounted = true;
 
-        return unsubscribe;
+        const checkSession = async () => {
+            const token = await authClient.getToken();
+            if (isMounted) {
+                setSession(token ? { user: { id: 'backend-user' } } : null);
+                setIsPending(false);
+            }
+        };
+
+        checkSession();
+
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
     return { data: session, isPending };
-}
-
-/**
- * Custom hook for Google Login
- */
-export function useGoogleLogin() {
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-        androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-        webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    });
-
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (response?.type === 'success') {
-            const { id_token, authentication } = response.params;
-            
-            // If using standard redirect, token might be in authentication object
-            const token = id_token || authentication?.idToken;
-
-            if (!token) {
-                setError('No ID token received from Google');
-                return;
-            }
-
-            const credential = GoogleAuthProvider.credential(token);
-            setLoading(true);
-            signInWithCredential(auth, credential)
-                .then(() => {
-                    setError(null);
-                })
-                .catch((err) => {
-                    setError(err.message);
-                })
-                .finally(() => {
-                    setLoading(false);
-                });
-        } else if (response?.type === 'error') {
-            setError(response.error?.message || 'Google login failed');
-        }
-    }, [response]);
-
-    return {
-        login: () => promptAsync(),
-        loading: loading || !request,
-        error,
-    };
 }

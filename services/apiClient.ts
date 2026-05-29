@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import * as SecureStore from 'expo-secure-store';
 import { auth, authClient } from './auth-client';
 import { useSyncStore } from '../state/bridge';
 
@@ -13,6 +14,17 @@ const httpClient: AxiosInstance = axios.create({
 });
 
 httpClient.interceptors.request.use(async config => {
+  // Check for backend token first
+  const backendToken = await SecureStore.getItemAsync('backend_token');
+  if (backendToken) {
+    config.headers = {
+        ...(config.headers as Record<string, string>),
+        Authorization: `Bearer ${backendToken}`,
+    };
+    return config;
+  }
+
+  // Fallback to Firebase token
   const user = auth.currentUser;
   if (user) {
     const token = await user.getIdToken();

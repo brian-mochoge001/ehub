@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, Circle, Polyline } from 'react-native-maps';
 import { api } from '@/services/api';
-import { Car } from 'lucide-react-native';
+import { Car, Bike } from 'lucide-react-native';
+import polyline from '@mapbox/polyline';
 
 interface DriverLocation {
   id: string;
@@ -19,9 +20,17 @@ interface TaxiMapProps {
   showNearby?: boolean;
   driverMode?: 'taxi' | 'motorbike';
   routeCoordinates?: { latitude: number; longitude: number }[];
+  encodedPolyline?: string;
 }
 
-export default function TaxiMap({ driverId, userLocation, showNearby = true, driverMode = 'taxi', routeCoordinates = [] }: TaxiMapProps) {
+export default function TaxiMap({ 
+  driverId, 
+  userLocation, 
+  showNearby = true, 
+  driverMode = 'taxi', 
+  routeCoordinates = [],
+  encodedPolyline 
+}: TaxiMapProps) {
   const [driver, setDriver] = useState<DriverLocation | null>(null);
   const [nearbyDrivers, setNearbyDrivers] = useState<DriverLocation[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +38,21 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true, dri
 
   // Default User Location (Nairobi)
   const userPos = userLocation || { latitude: -1.286389, longitude: 36.817223 };
+
+  // Decode polyline if provided
+  const decodedCoords = useMemo(() => {
+    if (!encodedPolyline) return routeCoordinates;
+    try {
+      const points = polyline.decode(encodedPolyline);
+      return points.map((point: number[]) => ({
+        latitude: point[0],
+        longitude: point[1],
+      }));
+    } catch (e) {
+      console.error('Failed to decode polyline:', e);
+      return routeCoordinates;
+    }
+  }, [encodedPolyline, routeCoordinates]);
 
   const fetchTrackedDriver = React.useCallback(async () => {
     if (!driverId) return;
@@ -42,19 +66,41 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true, dri
     }
   }, [driverId]);
 
+  const normalizeNearbyDrivers = (drivers: any[]) => {
+    return (drivers || [])
+      .map((entry: any) => {
+        const driver = entry?.driver ?? entry;
+        if (!driver || !driver.id) return null;
+
+        const latitude = Number(driver.latitude ?? driver.lat ?? driver.last_location?.latitude ?? driver.last_location?.lat);
+        const longitude = Number(driver.longitude ?? driver.lng ?? driver.last_location?.longitude ?? driver.last_location?.lng);
+
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+        return {
+          ...driver,
+          latitude,
+          longitude,
+          eta_minutes: entry?.eta_minutes ?? driver?.eta_minutes ?? null,
+        };
+      })
+      .filter(Boolean);
+  };
+
   const fetchNearbyDrivers = React.useCallback(async () => {
     try {
       const data = driverMode === 'motorbike'
         ? await api.getNearbyMotorbikeDrivers(userPos.longitude, userPos.latitude)
         : await api.getNearbyDrivers(userPos.longitude, userPos.latitude);
-      setNearbyDrivers(data);
+      setNearbyDrivers(normalizeNearbyDrivers(data));
     } catch (err) {
       console.error('Error fetching nearby drivers:', err);
+      setNearbyDrivers([]);
     }
   }, [driverMode, userPos.longitude, userPos.latitude]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
 
     const poll = () => {
       if (driverId) fetchTrackedDriver();
@@ -67,11 +113,23 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true, dri
     return () => clearInterval(interval);
   }, [driverId, showNearby, fetchTrackedDriver, fetchNearbyDrivers]);
 
+  // Adjust camera to fit route if new coordinates arrive
+  useEffect(() => {
+    if (decodedCoords.length > 0 && mapRef.current) {
+      mapRef.current.fitToCoordinates(decodedCoords, {
+        edgePadding: { top: 50, right: 50, bottom: 150, left: 50 },
+        animated: true,
+      });
+    }
+  }, [decodedCoords]);
+
   const initialRegion = {
     ...userPos,
     latitudeDelta: 0.02,
     longitudeDelta: 0.02,
   };
+
+  const DriverIcon = driverMode === 'motorbike' ? Bike : Car;
 
   return (
     <View style={styles.container}>
@@ -109,12 +167,12 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true, dri
             description="Your active driver"
           >
             <View style={styles.driverMarker}>
-              <Car size={24} color="#000" />
+              <DriverIcon size={24} color="#000" />
             </View>
           </Marker>
         )}
 
-        {/* Nearby Drivers (Simulated) */}
+        {/* Nearby Drivers */}
         {nearbyDrivers
           .filter(d => d.id !== driverId)
           .map(d => (
@@ -129,16 +187,19 @@ export default function TaxiMap({ driverId, userLocation, showNearby = true, dri
               opacity={0.6}
             >
               <View style={[styles.driverMarker, { backgroundColor: '#FFD700' }]}>
-                <Car size={20} color="#000" />
+                <DriverIcon size={20} color="#000" />
               </View>
             </Marker>
           ))}
-        {routeCoordinates && routeCoordinates.length > 0 && (
+
+        {/* Optimized Road Route */}
+        {decodedCoords && decodedCoords.length > 0 && (
           <Polyline
-            coordinates={routeCoordinates}
+            coordinates={decodedCoords}
             strokeColor="#0a7ea4"
             strokeWidth={4}
             lineCap="round"
+            lineJoin="round"
           />
         )}
       </MapView>

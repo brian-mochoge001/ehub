@@ -26,6 +26,9 @@ export default function SearchResultsScreen() {
   const [appliedMinPrice, setAppliedMinPrice] = useState('');
   const [appliedMaxPrice, setAppliedMaxPrice] = useState('');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [attributes, setAttributes] = useState<any[]>([]);
+  const [attributeValues, setAttributeValues] = useState<Record<string, any[]>>({});
+  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
 
   // Infinite Scroll State
   const [displayResults, setDisplayResults] = useState<any[]>([]);
@@ -33,35 +36,47 @@ export default function SearchResultsScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
+    loadMetaData();
+  }, []);
+
+  async function loadMetaData() {
+      try {
+          const attrData = await api.getAttributes();
+          setAttributes(attrData || []);
+          for (const attr of attrData || []) {
+              const values = await api.getAttributeValues(attr.id);
+              setAttributeValues(prev => ({ ...prev, [attr.id]: values || [] }));
+          }
+      } catch (e) {
+          console.error(e);
+      }
+  }
+
+  useEffect(() => {
     fetchResults();
-  }, [searchQuery, appliedCategory, appliedMinPrice, appliedMaxPrice]);
+  }, [searchQuery, appliedCategory, appliedMinPrice, appliedMaxPrice, activeFilters]);
 
   const fetchResults = async () => {
     try {
         setLoading(true);
-        // This is a simplification. We should have a real search endpoint on the backend.
-        // For now, we'll fetch all products and filter locally, or use a filtered endpoint if available.
-        const allProducts = await api.getFeaturedProducts(50); 
+        const params: Record<string, string> = { q: searchQuery };
+        if (appliedCategory !== 'All') params.category = appliedCategory;
+        if (appliedMinPrice) params.min_price = appliedMinPrice;
+        if (appliedMaxPrice) params.max_price = appliedMaxPrice;
         
-        const filtered = allProducts.filter((item: any) => {
-            const matchesQuery = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesFilter = appliedCategory === 'All' || item.category_name === appliedCategory;
-            
-            const price = parseFloat(item.price);
-            const min = appliedMinPrice ? parseFloat(appliedMinPrice) : 0;
-            const max = appliedMaxPrice ? parseFloat(appliedMaxPrice) : Infinity;
-            const matchesPrice = price >= min && price <= max;
-
-            return matchesQuery && matchesFilter && matchesPrice;
-        });
-
-        setDisplayResults(filtered);
+        // Add dynamic filters
+        const attrs = JSON.stringify(activeFilters);
+        if (attrs !== '{}') params.attributes = attrs;
+        
+        const filtered = await api.filterProducts(params);
+        setDisplayResults(filtered || []);
     } catch (err) {
         console.error('Failed to fetch search results:', err);
     } finally {
         setLoading(false);
     }
   };
+
 
   const loadMore = async () => {
     if (isLoadingMore) return;
@@ -117,7 +132,16 @@ export default function SearchResultsScreen() {
     <ThemedView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)');
+            }
+          }}
+        >
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
         
@@ -218,28 +242,40 @@ export default function SearchResultsScreen() {
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
-                  <ThemedText style={styles.sheetSectionTitle}>Category</ThemedText>
-                  <View style={styles.categoryGrid}>
-                    {CATEGORY_FILTERS.map(cat => (
-                      <TouchableOpacity 
-                        key={cat} 
-                        style={[
-                          styles.categoryTag, 
-                          { backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5' },
-                          tempCategory === cat && { backgroundColor: activeColor + '20', borderColor: activeColor, borderWidth: 1 }
-                        ]}
-                        onPress={() => setTempCategory(cat)}
-                      >
-                        <ThemedText style={[
-                          styles.categoryTagText,
-                          tempCategory === cat && { color: activeColor, fontWeight: 'bold' }
-                        ]}>{cat}</ThemedText>
-                        {tempCategory === cat && <Check size={14} color={activeColor} style={{ marginLeft: 4 }} />}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  {attributes.map((attr) => {
+                    const attrKey = attr.name.toLowerCase();
+                    const values = attributeValues[attr.id] || [];
 
-                  <View style={styles.sheetDivider} />
+                    return (
+                      <React.Fragment key={attr.id}>
+                        <ThemedText style={styles.sheetSectionTitle}>{attr.name}</ThemedText>
+                        <View style={styles.categoryGrid}>
+                          {values.map((val) => (
+                            <TouchableOpacity
+                              key={val.id || `${attr.id}-${val.value}`}
+                              style={[
+                                styles.categoryTag,
+                                { backgroundColor: isDark ? '#2a2a2a' : '#f5f5f5' },
+                                activeFilters[attrKey] === val.value && { backgroundColor: activeColor + '20', borderColor: activeColor, borderWidth: 1 }
+                              ]}
+                              onPress={() => {
+                                const newFilters = {...activeFilters};
+                                newFilters[attrKey] = val.value;
+                                setActiveFilters(newFilters);
+                              }}
+                            >
+                              <ThemedText style={[
+                                styles.categoryTagText,
+                                activeFilters[attrKey] === val.value && { color: activeColor, fontWeight: 'bold' }
+                              ]}>{val.value}</ThemedText>
+                              {activeFilters[attrKey] === val.value && <Check size={14} color={activeColor} style={{ marginLeft: 4 }} />}
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        <View style={styles.sheetDivider} />
+                      </React.Fragment>
+                    );
+                  })}
 
                   <ThemedText style={styles.sheetSectionTitle}>Price Range ($)</ThemedText>
                   <View style={styles.priceInputRow}>

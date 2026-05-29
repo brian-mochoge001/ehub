@@ -1,6 +1,10 @@
 import { apiClient } from './apiClient';
 
 export const api = {
+  // Auth Methods
+  login: (data: any) => apiClient.post('/auth/login', data),
+  register: (data: any) => apiClient.post('/auth/register', data),
+
   getHubs: () => apiClient.get('/hubs'),
   createHub: (name: string, description: string) => apiClient.post('/hubs', { id: Math.random().toString(36).substr(2, 9), name, description }),
   getTasks: () => apiClient.get('/tasks'),
@@ -18,8 +22,8 @@ export const api = {
   declineRideRequest: (tripId: string) => apiClient.post('/taxi/driver/decline', { trip_id: tripId }),
   acceptDeliveryRequest: (orderId: string) => apiClient.post('/delivery/driver/accept', { order_id: orderId }),
   declineDeliveryRequest: (orderId: string) => apiClient.post('/delivery/driver/decline', { order_id: orderId }),
-  getNearbyDrivers: (longitude: number, latitude: number, limit: number = 5) => apiClient.get(`/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}`),
-  getNearbyMotorbikeDrivers: (longitude: number, latitude: number, limit: number = 5) => apiClient.get(`/delivery/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}`),
+  getNearbyDrivers: (longitude: number, latitude: number, limit: number = 5, radius: number = 5000) => apiClient.get(`/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}&radius=${radius}`),
+  getNearbyMotorbikeDrivers: (longitude: number, latitude: number, limit: number = 5, radius: number = 5000) => apiClient.get(`/delivery/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}&radius=${radius}`),
   createTaxiTrip: (tripData: any) => apiClient.post('/taxi/request', tripData),
 
   // Business / Mall Methods
@@ -82,8 +86,14 @@ export const api = {
 
   // Mall / Generic Ecommerce
   getFeaturedProducts: (limit: number = 10, offset: number = 0) => apiClient.get(`/featured-products?limit=${limit}&offset=${offset}`),
+  filterProducts: (params: Record<string, string>) => {
+    const q = new URLSearchParams(params).toString();
+    return apiClient.get(`/products/filter?${q}`);
+  },
   getFlashSaleProducts: (limit: number = 5, offset: number = 0) => apiClient.get(`/products?is_flash_sale=true&limit=${limit}&offset=${offset}`),
   getCategories: () => apiClient.get('/categories'),
+  getAttributes: () => apiClient.get('/attributes'),
+  getAttributeValues: (attrID: string) => apiClient.get(`/attributes/${attrID}/values`),
   getProperties: (filters?: { city?: string, max_price?: number, min_rooms?: number }) => {
     let url = '/properties';
     if (filters) {
