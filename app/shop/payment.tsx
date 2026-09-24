@@ -77,7 +77,8 @@ export default function PaymentScreen() {
     try {
       setProcessing(true);
       const result = await api.checkout(selectedAddress);
-      setOrderId(result.order_id || 'EH-' + Math.floor(100000 + Math.random() * 900000));
+      // Use parent_order_id for the UI to represent the grouped order
+      setOrderId(result.parent_order_id || result.order_id || 'EH-' + Math.floor(100000 + Math.random() * 900000));
       setIsOrdered(true);
       
       // Navigate back after delay

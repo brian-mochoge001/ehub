@@ -1,37 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Clock, ShoppingCart, Plus, Shirt, WashingMachine, Waves } from 'lucide-react-native';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedText } from '@packages/components/themed-text';
+import { ThemedView } from '@packages/components/themed-view';
+import { Colors } from '@packages/constants/theme';
+import { useColorScheme } from '@packages/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-import { api } from '@/services/api';
+import { useService } from '@packages/hooks/useService';
+import { api } from '@packages/services/api';
 
 export default function LaundryScreen() {
+
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#03A9F4'; // Laundry blue
   const isDark = colorScheme === 'dark';
 
-  const [services, setServices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use the new hook for laundry services
+  const { data, loading } = useService<any[] | null>('laundry');
+  const services = data ?? [];
 
-  useEffect(() => {
-    fetchLaundryServices();
-  }, []);
+  // ... rest of component logic (remove fetchLaundryServices useEffect)
 
-  const fetchLaundryServices = async () => {
-    try {
-        setLoading(true);
-        const data = await api.getServicesByType('laundry');
-        setServices(data || []);
-    } catch (err) {
-        console.error('Failed to fetch laundry services:', err);
-    } finally {
-        setLoading(false);
-    }
-  };
 
   if (loading) {
     return (

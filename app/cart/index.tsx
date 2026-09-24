@@ -24,9 +24,11 @@ export default function CartPage() {
         try {
             setLoading(true);
             const data = await api.getCart();
-            setCartItems(data);
+            // Ensure data is always an array
+            setCartItems(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error('Failed to fetch cart:', err);
+            setCartItems([]);
         } finally {
             setLoading(false);
         }
@@ -35,13 +37,15 @@ export default function CartPage() {
     const handleRemove = async (id: string) => {
         try {
             await api.removeFromCart(id);
-            setCartItems(prev => prev.filter(item => item.id !== id));
+            setCartItems(prev => (Array.isArray(prev) ? prev.filter(item => item.id !== id) : []));
         } catch (err) {
             alert('Failed to remove item');
         }
     };
 
-    const filteredItems = filter === 'All' ? cartItems : cartItems.filter(i => i.item_type === filter);
+    const filteredItems = Array.isArray(cartItems) 
+        ? (filter === 'All' ? cartItems : cartItems.filter(i => i.item_type === filter))
+        : [];
 
     const subtotal = filteredItems.reduce((acc, item) => acc + (parseFloat(item.price) || 0) * (item.quantity || 1), 0);
     const shipping = subtotal > 0 ? 0 : 0; // Free for now as per design

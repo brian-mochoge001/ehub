@@ -59,17 +59,10 @@ export default function SearchResultsScreen() {
   const fetchResults = async () => {
     try {
         setLoading(true);
-        const params: Record<string, string> = { q: searchQuery };
-        if (appliedCategory !== 'All') params.category = appliedCategory;
-        if (appliedMinPrice) params.min_price = appliedMinPrice;
-        if (appliedMaxPrice) params.max_price = appliedMaxPrice;
+        // Using the new search endpoint implemented on backend
+        const results = await api.searchProducts(searchQuery, 20); 
         
-        // Add dynamic filters
-        const attrs = JSON.stringify(activeFilters);
-        if (attrs !== '{}') params.attributes = attrs;
-        
-        const filtered = await api.filterProducts(params);
-        setDisplayResults(filtered || []);
+        setDisplayResults(results || []);
     } catch (err) {
         console.error('Failed to fetch search results:', err);
     } finally {

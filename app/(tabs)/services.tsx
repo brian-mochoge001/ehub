@@ -12,7 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 
-const FEATURED_SERVICES = [
+export const FEATURED_SERVICES = [
   {
     id: 'food',
     name: 'eFood',
@@ -43,7 +43,7 @@ const FEATURED_SERVICES = [
   },
 ];
 
-const ALL_SERVICES = [
+export const ALL_SERVICES = [
   { id: 'driver', name: 'Driver Hub', image: 'https://images.unsplash.com/photo-1638295402326-274099bfa11a?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/driver' },
   { id: 'egrocery', name: 'eGrocery', image: 'https://images.unsplash.com/photo-1550989460-0adf9ea622e2?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/egrocery' },
   { id: 'eliquor', name: 'eLiquor', image: 'https://images.unsplash.com/photo-1570566965181-f1cde4b96d65?q=80&w=1074&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/eliquor' },
@@ -60,6 +60,7 @@ const ALL_SERVICES = [
   { id: 'eflights', name: 'eFlights', image: 'https://images.unsplash.com/photo-1569629743817-70d8db6c323b?q=80&w=1198&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/eflights' },
   { id: 'eRepare', name: 'eRepare', image: 'https://images.unsplash.com/photo-1659456553707-14712bb27032?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', route: '/miniservices/eRepare' },
 ];
+
 
 
 export default function ServicesScreen() {

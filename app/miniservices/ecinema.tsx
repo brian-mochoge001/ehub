@@ -7,99 +7,32 @@ import {
   Image,
   ImageBackground,
   ActivityIndicator,
+  Modal,
+  Dimensions,
 } from 'react-native';
-import { ArrowLeft, Star, Play, Ticket } from 'lucide-react-native';
+import { Video, ResizeMode } from 'expo-av';
+import { ArrowLeft, Star, Play, Ticket, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { api } from '@/services/api';
+import { ThemedText } from '@packages/components/themed-text';
+import { ThemedView } from '@packages/components/themed-view';
+import { api } from '@packages/services/api';
 
+const { width, height } = Dimensions.get('window');
 const ACTIVE_COLOR = '#E50914';
 
 const TABS = {
   NOW_PLAYING: 'now_playing',
   COMING_SOON: 'coming_soon',
-  THEATRES: 'theatres',
 };
-
-const NOW_PLAYING = [
-  {
-    id: '1',
-    title: 'The Batman',
-    rating: '4.8',
-    genre: 'Action, Crime',
-    image: 'https://i.pinimg.com/736x/ab/3d/63/ab3d6358c7ee93923de8caec086aa259.jpg',
-  },
-  {
-    id: '2',
-    title: 'Spider-Man: No Way Home',
-    rating: '4.7',
-    genre: 'Action, Adventure',
-    image: 'https://i.pinimg.com/736x/dc/11/5f/dc115f3ed3016cc1a8cc666693e4215d.jpg',
-  },
-  {
-    id: '3',
-    title: 'John Wick 2',
-    rating: '4.9',
-    genre: 'Action, Thriller',
-    image: 'https://i.pinimg.com/1200x/f3/f4/c6/f3f4c64663457d886bd7508b6950c433.jpg',
-  },
-  {
-    id: '4',
-    title: 'Avatar: The Way of Water',
-    rating: '4.6',
-    genre: 'Sci-Fi, Adventure',
-    image: 'https://i.pinimg.com/736x/66/ec/b5/66ecb58a7db3308030eac58dbb3d39c3.jpg',
-  },
-  {
-    id: '5',
-    title: 'Black Panther: Wakanda Forever',
-    rating: '4.5',
-    genre: 'Action, Drama',
-    image: 'https://i.pinimg.com/736x/59/00/a2/5900a20f0d4ae53621b6a6317841c90f.jpg',
-  },
-];
-
-const COMING_SOON = [
-  {
-    id: '6',
-    title: 'Dune: Part Two',
-    date: 'Nov 03, 2023',
-    image: 'https://i.pinimg.com/736x/b7/95/44/b795447414c34b18eddc91fdea0fffef.jpg',
-  },
-  {
-    id: '7',
-    title: 'The Marvels',
-    date: 'Nov 10, 2023',
-    image: 'https://i.pinimg.com/736x/7c/8f/e5/7c8fe5b2dace150805e7da2f97f990c8.jpg',
-  },
-  {
-    id: '8',
-    title: 'Deadpool 3',
-    date: 'Dec 15, 2023',
-    image: 'https://i.pinimg.com/736x/34/7f/2d/347f2d9e9bcb8263d06b18a24dcba67e.jpg',
-  },
-  {
-    id: '9',
-    title: 'Mission: Impossible 8',
-    date: 'Jan 12, 2024',
-    image: 'https://i.pinimg.com/1200x/7e/a3/99/7ea399e4b592a0b969d77916a93e001a.jpg',
-  },
-  {
-    id: '10',
-    title: 'Joker: Folie à Deux',
-    date: 'Oct 04, 2024',
-    image: 'https://i.pinimg.com/736x/81/ef/29/81ef29ee2e34adebee96caaba0184dec.jpg',
-  },
-];
 
 export default function CinemaScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(TABS.NOW_PLAYING);
-  const [nowPlaying, setNowPlaying] = useState<any[]>([]);
-  const [comingSoon, setComingSoon] = useState<any[]>([]);
+  const [movies, setMovies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trailerModalVisible, setTrailerModalVisible] = useState(false);
+  const [selectedTrailer, setSelectedTrailer] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMovies();
@@ -107,80 +40,92 @@ export default function CinemaScreen() {
 
   const fetchMovies = async () => {
     try {
-        setLoading(true);
-        const [now, soon] = await Promise.all([
-            api.getMovies(true),
-            api.getMovies(false)
-        ]);
-        setNowPlaying(now || []);
-        setComingSoon(soon || []);
-    } catch (err) {
-        console.error('Failed to fetch movies:', err);
+      setLoading(true);
+      const [nowPlayingRes, comingSoonRes] = await Promise.all([
+        api.getMovies(true),
+        api.getMovies(false),
+      ]);
+      setMovies([...(nowPlayingRes.data || []), ...(comingSoonRes.data || [])]);
+    } catch (error) {
+      console.error('Error fetching movies:', error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
-  const featuredMovie = nowPlaying[0] || { title: 'No Movies', genre: '', poster_url: 'https://via.placeholder.com/800' };
+  const nowPlaying = movies.filter((m: any) => m.is_now_playing);
+  const comingSoon = movies.filter((m: any) => !m.is_now_playing);
+
+  const featuredMovie = nowPlaying[0] || { title: 'No Movies Available', genre: '', poster_url: 'https://via.placeholder.com/800' };
+
+  const openTrailer = (url: string) => {
+    setSelectedTrailer(url);
+    setTrailerModalVisible(true);
+  };
 
   const renderContent = () => {
     if (loading) {
-        return (
-            <View style={styles.emptyState}>
-                <ActivityIndicator size="large" color={ACTIVE_COLOR} />
-            </View>
-        );
+      return (
+        <View style={styles.emptyState}>
+          <ActivityIndicator size="large" color={ACTIVE_COLOR} />
+        </View>
+      );
     }
 
     switch (activeTab) {
       case TABS.NOW_PLAYING:
         return (
           <View style={styles.moviesGrid}>
-            {nowPlaying.map((movie) => (
-              <TouchableOpacity key={movie.id} style={styles.movieCard}>
-                <Image source={{ uri: movie.poster_url || 'https://via.placeholder.com/400' }} style={styles.posterImage} />
-                <ThemedText numberOfLines={1} style={styles.posterTitle}>
-                  {movie.title}
-                </ThemedText>
-                <View style={styles.posterRating}>
-                  <Star size={10} color="#FFD700" fill="#FFD700" />
-                  <ThemedText style={styles.posterRatingText}>
-                    {movie.rating || '0.0'}
+            {nowPlaying.length === 0 ? (
+              <ThemedText style={styles.noMoviesText}>No movies now playing.</ThemedText>
+            ) : (
+              nowPlaying.map((movie: any) => (
+                <View key={movie.id} style={styles.movieCard}>
+                  <Image source={{ uri: movie.poster_url || 'https://via.placeholder.com/400' }} style={styles.posterImage} />
+                  <ThemedText numberOfLines={1} style={styles.posterTitle}>
+                    {movie.title}
                   </ThemedText>
+                  <View style={styles.posterRating}>
+                    <Star size={10} color="#FFD700" fill="#FFD700" />
+                    <ThemedText style={styles.posterRatingText}>
+                      {movie.rating || '0.0'}
+                    </ThemedText>
+                  </View>
+                  {movie.trailer_url && (
+                    <TouchableOpacity
+                      style={styles.trailerBtn}
+                      onPress={() => openTrailer(movie.trailer_url)}
+                    >
+                      <ThemedText style={styles.trailerBtnText}>Watch Trailer</ThemedText>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              </TouchableOpacity>
-            ))}
+              ))
+            )}
           </View>
         );
 
       case TABS.COMING_SOON:
         return (
-          <ScrollView
-            contentContainerStyle={styles.comingSoonList}
-          >
-            {comingSoon.map((movie) => (
-              <TouchableOpacity key={movie.id} style={styles.smallMovieCard}>
-                <Image source={{ uri: movie.poster_url || 'https://via.placeholder.com/400' }} style={styles.smallPoster} />
-                <ThemedText numberOfLines={1} style={styles.smallMovieTitle}>
-                  {movie.title}
-                </ThemedText>
-                <ThemedText style={styles.releaseDate}>
-                  {new Date(movie.release_date).toLocaleDateString()}
-                </ThemedText>
-              </TouchableOpacity>
-            ))}
+          <ScrollView contentContainerStyle={styles.comingSoonList}>
+            {comingSoon.length === 0 ? (
+              <ThemedText style={styles.noMoviesText}>No upcoming movies listed.</ThemedText>
+            ) : (
+              comingSoon.map((movie: any) => (
+                <View key={movie.id} style={styles.smallMovieCard}>
+                  <Image source={{ uri: movie.poster_url || 'https://via.placeholder.com/400' }} style={styles.smallPoster} />
+                  <ThemedText numberOfLines={1} style={styles.smallMovieTitle}>
+                    {movie.title}
+                  </ThemedText>
+                  <ThemedText style={styles.releaseDate}>
+                    {movie.release_date ? new Date(movie.release_date).toLocaleDateString() : 'TBA'}
+                  </ThemedText>
+                </View>
+              ))
+            )}
           </ScrollView>
         );
-
-      case TABS.THEATRES:
-        return (
-          <View style={styles.emptyState}>
-            <ThemedText style={{ opacity: 0.6 }}>
-              Theatre listings coming soon
-            </ThemedText>
-          </View>
-        );
-
+      
       default:
         return null;
     }
@@ -190,15 +135,10 @@ export default function CinemaScreen() {
     <ThemedView style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
           <ArrowLeft size={22} color="#fff" />
         </TouchableOpacity>
-
         <ThemedText style={styles.headerTitle}>eCinema</ThemedText>
-
         <TouchableOpacity style={styles.iconButton}>
           <Ticket size={22} color="#fff" />
         </TouchableOpacity>
@@ -207,18 +147,12 @@ export default function CinemaScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* FEATURED */}
         <ImageBackground
-          source={{ uri: featuredMovie.poster_url || featuredMovie.image }}
+          source={{ uri: featuredMovie.poster_url }}
           style={styles.featured}
         >
           <View style={styles.overlay}>
-            <ThemedText style={styles.genreText}>
-              {featuredMovie.genre}
-            </ThemedText>
-
-            <ThemedText style={styles.movieTitle}>
-              {featuredMovie.title}
-            </ThemedText>
-
+            <ThemedText style={styles.genreText}>{featuredMovie.genre}</ThemedText>
+            <ThemedText style={styles.movieTitle}>{featuredMovie.title}</ThemedText>
             <TouchableOpacity style={styles.bookBtn}>
               <Play size={18} color="#fff" fill="#fff" />
               <ThemedText style={styles.bookText}>Book Tickets</ThemedText>
@@ -228,26 +162,32 @@ export default function CinemaScreen() {
 
         {/* TABS */}
         <View style={styles.tabRow}>
-          <Tab
-            label="Now Playing"
-            active={activeTab === TABS.NOW_PLAYING}
-            onPress={() => setActiveTab(TABS.NOW_PLAYING)}
-          />
-          <Tab
-            label="Coming Soon"
-            active={activeTab === TABS.COMING_SOON}
-            onPress={() => setActiveTab(TABS.COMING_SOON)}
-          />
-          <Tab
-            label="Theatres"
-            active={activeTab === TABS.THEATRES}
-            onPress={() => setActiveTab(TABS.THEATRES)}
-          />
+          <Tab label="Now Playing" active={activeTab === TABS.NOW_PLAYING} onPress={() => setActiveTab(TABS.NOW_PLAYING)} />
+          <Tab label="Coming Soon" active={activeTab === TABS.COMING_SOON} onPress={() => setActiveTab(TABS.COMING_SOON)} />
         </View>
 
         {/* CONTENT */}
         {renderContent()}
       </ScrollView>
+
+      {/* Trailer Modal */}
+      <Modal visible={trailerModalVisible} animationType="slide" transparent={true} onRequestClose={() => setTrailerModalVisible(false)}>
+        <View style={styles.modalContainer}>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => setTrailerModalVisible(false)}>
+            <X size={28} color="#fff" />
+          </TouchableOpacity>
+          {selectedTrailer && (
+            <Video
+              source={{ uri: selectedTrailer }}
+              style={styles.video}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              isLooping
+              shouldPlay
+            />
+          )}
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -399,6 +339,18 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     opacity: 0.6,
   },
+  trailerBtn: {
+    marginTop: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  trailerBtnText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+  },
 
   /* COMING SOON */
   comingSoonList: {
@@ -435,5 +387,30 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: 40,
     alignItems: 'center',
+  },
+  noMoviesText: {
+    textAlign: 'center',
+    width: '100%',
+    marginTop: 20,
+    opacity: 0.5,
+  },
+
+  /* MODAL */
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  },
+  video: {
+    width: width,
+    height: height * 0.6,
   },
 });

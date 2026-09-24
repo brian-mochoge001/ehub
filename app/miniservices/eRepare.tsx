@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Search, Wrench, Laptop, Smartphone, Tv, Home, History, ChevronRight, Star, Clock } from 'lucide-react-native';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedText } from '@packages/components/themed-text';
+import { ThemedView } from '@packages/components/themed-view';
+import { Colors } from '@packages/constants/theme';
+import { useColorScheme } from '@packages/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-import { api } from '@/services/api';
+import { api } from '@packages/services/api';
 
 const REPAIR_CATEGORIES = [
   { id: '1', name: 'Mobile', icon: Smartphone, color: '#2196F3' },

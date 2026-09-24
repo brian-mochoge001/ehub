@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { api } from '@/services/api';
-import { ArrowLeft, Bed, Bath, Users, Wifi, Utensils, Parking, Snowflake, Droplet, MapPin, Star, CheckCircle, XCircle, Clock, Calendar as CalendarIcon, Minus, Plus } from 'lucide-react-native';
+import { ArrowLeft, Bed, Bath, Users, Wifi, Utensils, Car, Snowflake, Droplet, MapPin, Star, CheckCircle, XCircle, Clock, Calendar as CalendarIcon, Minus, Plus } from 'lucide-react-native';
 
 export default function PropertyDetailsScreen() {
   const router = useRouter();
@@ -136,7 +136,7 @@ export default function PropertyDetailsScreen() {
           <View style={styles.amenitiesGrid}>
             {renderAmenity(Wifi, 'Wi-Fi', property.has_wifi)}
             {renderAmenity(Utensils, 'Kitchen', property.has_kitchen)}
-            {renderAmenity(Parking, 'Parking', property.has_parking)}
+            {renderAmenity(Car, 'Parking', property.has_parking)}
             {renderAmenity(Droplet, 'Pool', property.has_pool)}
             {renderAmenity(Snowflake, 'A/C', property.has_ac)}
           </View>

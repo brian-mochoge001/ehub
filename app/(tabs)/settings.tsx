@@ -136,7 +136,7 @@ export default function SettingsScreen() {
         <ThemedText style={styles.versionText}>Version 1.0.0 (Build 123)</ThemedText>
       </ScrollView>
 
-      <FeedbackModal visible={feedbackVisible} onClose={() => setFeedbackVisible(false)} />
+      <FeedbackModal visible={feedbackVisible} onClose={() => setFeedbackVisible(false)} targetId="settings" targetType="user" />
     </ThemedView>
   );
 }

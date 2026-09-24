@@ -4,20 +4,23 @@ import { Image } from 'expo-image';
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-import { FEATURED_SERVICES } from '../app/(tabs)/services';
-import { LayoutGrid } from 'lucide-react-native';
+import { ALL_SERVICES } from '../app/(tabs)/services';
 
 const { width } = Dimensions.get('window');
 
-export const ShortcutsCarousel = () => {
+export const CategoriesCarousel = () => {
   const colorScheme = useColorScheme() ?? 'light';
   const router = useRouter();
   const isDark = colorScheme === 'dark';
+  const displayedCategories = ALL_SERVICES.slice(0, 6);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <ThemedText type="subtitle" style={styles.title}>Mini-Services</ThemedText>
+        <ThemedText type="subtitle" style={styles.title}>Categories</ThemedText>
+        <TouchableOpacity onPress={() => router.push('/(tabs)/services')}>
+          <ThemedText style={{ color: colorScheme === 'light' ? '#0a7ea4' : '#6495ED' }}>See All</ThemedText>
+        </TouchableOpacity>
       </View>
       <ScrollView 
         horizontal 
@@ -26,17 +29,17 @@ export const ShortcutsCarousel = () => {
         snapToInterval={width * 0.22 + 15}
         decelerationRate="fast"
       >
-        {FEATURED_SERVICES.map((service, index) => (
+        {displayedCategories.map((cat, index) => (
           <TouchableOpacity 
-            key={service.id} 
-            style={[styles.serviceItem, { marginLeft: index === 0 ? 20 : 0 }]}
-            onPress={() => router.push(service.route as any)}
+            key={cat.id} 
+            style={[styles.catItem, { marginLeft: index === 0 ? 20 : 0 }]}
+            onPress={() => router.push(cat.route as any)}
             activeOpacity={0.7}
           >
             <View style={[styles.iconWrapper, { backgroundColor: isDark ? '#333' : '#fff' }]}>
-              <Image source={{ uri: service.image }} style={styles.serviceImage} contentFit="cover" />
+              <Image source={{ uri: cat.image }} style={styles.catImage} contentFit="cover" />
             </View>
-            <ThemedText style={styles.serviceName}>{service.name}</ThemedText>
+            <ThemedText style={styles.catName}>{cat.name}</ThemedText>
           </TouchableOpacity>
         ))}
         {/* More Button */}
@@ -45,9 +48,9 @@ export const ShortcutsCarousel = () => {
             onPress={() => router.push('/(tabs)/services')}
         >
             <View style={[styles.iconWrapper, { backgroundColor: isDark ? '#333' : '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
-              <LayoutGrid size={24} color={isDark ? '#fff' : '#000'} />
+              <ThemedText style={{fontSize: 20}}>...</ThemedText>
             </View>
-            <ThemedText style={styles.serviceName}>More</ThemedText>
+            <ThemedText style={styles.catName}>More</ThemedText>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -56,32 +59,12 @@ export const ShortcutsCarousel = () => {
 
 const styles = StyleSheet.create({
   container: { marginVertical: 10 },
-  header: { paddingHorizontal: 20, marginBottom: 15 },
+  header: { paddingHorizontal: 20, marginBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 18, fontWeight: 'bold' },
   scrollContent: { paddingRight: 20 },
-  serviceItem: { alignItems: 'center', marginRight: 15, width: width * 0.22 },
+  catItem: { alignItems: 'center', marginRight: 15, width: width * 0.22 },
   moreItem: { alignItems: 'center', width: width * 0.22 },
-  iconWrapper: {
-    width: 65,
-    height: 65,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    overflow: 'hidden',
-  },
-  serviceImage: {
-    width: '100%',
-    height: '100%',
-  },
-  serviceName: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
+  iconWrapper: { width: 65, height: 65, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginBottom: 10, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, overflow: 'hidden' },
+  catImage: { width: '100%', height: '100%' },
+  catName: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
 });

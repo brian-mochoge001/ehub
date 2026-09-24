@@ -1,9 +1,34 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import * as SecureStore from 'expo-secure-store';
-import { auth, authClient } from './auth-client';
+import { auth } from './firebaseConfig';
 import { useSyncStore } from '../state/bridge';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://ehubgo.onrender.com/api/v1';
+
+// Helper to flatten sql.NullString and similar structures from Go
+function flattenNulls(obj: any): any {
+    if (obj === null || typeof obj !== 'object') return obj;
+    
+    if (Array.isArray(obj)) {
+        return obj.map(flattenNulls);
+    }
+    
+    // Handle sql.NullString { String: string, Valid: boolean }
+    if ('String' in obj && 'Valid' in obj && typeof obj.Valid === 'boolean') {
+        return obj.Valid ? obj.String : null;
+    }
+    
+    // Handle sql.NullInt32, sql.NullFloat64, etc.
+    if ('Int32' in obj && 'Valid' in obj) return obj.Valid ? obj.Int32 : null;
+    if ('Float64' in obj && 'Valid' in obj) return obj.Valid ? obj.Float64 : null;
+    if ('Bool' in obj && 'Valid' in obj) return obj.Valid ? obj.Bool : null;
+    if ('Time' in obj && 'Valid' in obj) return obj.Valid ? obj.Time : null;
+
+    const flattened: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+        flattened[key] = flattenNulls(value);
+    }
+    return flattened;
+}
 
 const httpClient: AxiosInstance = axios.create({
   baseURL: API_URL,
@@ -14,33 +39,30 @@ const httpClient: AxiosInstance = axios.create({
 });
 
 httpClient.interceptors.request.use(async config => {
-  // Check for backend token first
-  const backendToken = await SecureStore.getItemAsync('backend_token');
-  if (backendToken) {
-    config.headers = {
-        ...(config.headers as Record<string, string>),
-        Authorization: `Bearer ${backendToken}`,
-    };
-    return config;
-  }
-
-  // Fallback to Firebase token
+  // Always try to get the latest Firebase token
   const user = auth.currentUser;
   if (user) {
-    const token = await user.getIdToken();
-    config.headers = {
-      ...(config.headers as Record<string, string>),
-      Authorization: `Bearer ${token}`,
-    };
+    try {
+      const token = await user.getIdToken();
+      config.headers.set('Authorization', `Bearer ${token}`);
+    } catch (e) {
+      console.warn('[API] Failed to get Firebase token', e);
+    }
   }
   return config;
 });
 
 httpClient.interceptors.response.use(
-  response => response,
+  response => {
+    // Automatically flatten Nulls in response data
+    response.data = flattenNulls(response.data);
+    return response;
+  },
   async error => {
     const status = error?.response?.status;
     if (status === 401) {
+      // Import authClient locally to break circular dependency
+      const { authClient } = await import('./auth-client');
       await authClient.signOut();
       useSyncStore.getState().clearSyncState();
     }

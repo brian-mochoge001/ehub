@@ -9,6 +9,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import TaxiMap from '@/components/TaxiMap';
+import { useService } from '@/hooks/useService';
 
 export default function GroceryScreen() {
   const router = useRouter();
@@ -16,38 +17,26 @@ export default function GroceryScreen() {
   const activeColor = '#2E7D32'; 
   const isDark = colorScheme === 'dark';
 
-  const [stores, setStores] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use the new hook for grocery data
+  // Note: For now, we fetch 'details'. 
+  // A production-ready orchestrator might require parameters (like location)
+  // which this simple implementation doesn't support yet.
+  const { data: stores = [], loading } = useService<any[]>('grocery');
+  
   const [userLocation, setUserLocation] = useState<{latitude: number, longitude: number} | undefined>(undefined);
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchNearbyStores();
-  }, []);
-
-  const fetchNearbyStores = async () => {
-    try {
-      setLoading(true);
+    // Keep location fetching for map/ui context
+    (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location access is needed to find nearby grocery stores.');
-        setLoading(false);
-        return;
+      if (status === 'granted') {
+        let location = await Location.getCurrentPositionAsync({});
+        setUserLocation({ latitude: location.coords.latitude, longitude: location.coords.longitude });
       }
-
-      let location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-      setUserLocation({ latitude, longitude });
-
-      const data = await api.getGroceryStores(latitude, longitude, 5000);
-      setStores(data || []);
-    } catch (err) {
-      console.error('Failed to fetch stores:', err);
-      setStores([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+  }, []);
+// ... rest of component
 
   if (loading) {
     return (

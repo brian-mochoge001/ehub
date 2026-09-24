@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Bus, MapPin, Calendar, Clock, ChevronRight, Info, Heart } from 'lucide-react-native';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedText } from '@packages/components/themed-text';
+import { ThemedView } from '@packages/components/themed-view';
+import { useColorScheme } from '@packages/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-import { api } from '@/services/api';
-import { Colors } from '@/constants/theme';
+import { api } from '@packages/services/api';
+import { Colors } from '@packages/constants/theme';
 
 export default function BusScreen() {
   const router = useRouter();

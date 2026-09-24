@@ -1,37 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ArrowLeft, Star, ChevronRight, Home, Sparkles, Building2, LayoutGrid } from 'lucide-react-native';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedText } from '@packages/components/themed-text';
+import { ThemedView } from '@packages/components/themed-view';
+import { Colors } from '@packages/constants/theme';
+import { useColorScheme } from '@packages/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-import { api } from '@/services/api';
-
+import { useService } from '@packages/hooks/useService';
+// ...
 export default function CleanScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = '#4CAF50'; // Eco green
   const isDark = colorScheme === 'dark';
 
-  const [services, setServices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use the new hook for cleaning services
+  const { data, loading } = useService<any[] | null>('clean');
+  const services = data ?? [];
 
-  useEffect(() => {
-    fetchCleaningServices();
-  }, []);
+  // ... rest of component logic (remove fetchCleaningServices useEffect)
 
-  const fetchCleaningServices = async () => {
-    try {
-        setLoading(true);
-        const data = await api.getServicesByType('cleaning');
-        setServices(data || []);
-    } catch (err) {
-        console.error('Failed to fetch cleaning services:', err);
-    } finally {
-        setLoading(false);
-    }
-  };
 
   if (loading) {
     return (

@@ -1,13 +1,15 @@
+import { useService } from '@packages/hooks/useService';
+import { Colors } from '@packages/constants/theme';
+import { useColorScheme } from '@packages/hooks/use-color-scheme';
+import { useLocation } from '@packages/hooks/useLocation';
+import { DeliveryFlow } from '@packages/components/DeliveryFlow';
+import { Bike, Heart, Search, MapPin, ShoppingBag, Star, Clock, ArrowLeft, SlidersHorizontal, ChevronRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { ThemedText } from '@packages/components/themed-text';
+import { ThemedView } from '@packages/components/themed-view';
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TextInput, TouchableOpacity, Image, FlatList, ActivityIndicator, Alert } from 'react-native';
-import * as Location from 'expo-location';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { api } from '@/services/api';
-import { Bike, Heart, Search, MapPin, ShoppingBag, Star, Clock, ArrowLeft, SlidersHorizontal, ChevronRight } from 'lucide-react-native';
+import { api } from '@packages/services/api';
 
 const CATEGORIES = [
   { id: '1', name: 'Pizza', image_url: 'https://i.pinimg.com/1200x/15/f1/d9/15f1d9c15a0e9f18ab4156e6918bd31b.jpg' },
@@ -22,74 +24,41 @@ export default function FoodScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
   const activeColor = Colors[colorScheme].tint;
+  const { data: foodItems = [] } = useService<any[]>('food');
+  const { location: userLocation, getCurrentLocation } = useLocation();
 
-  const [foodItems, setFoodItems] = useState<any[]>([]);
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [motorbikeDrivers, setMotorbikeDrivers] = useState<any[]>([]);
   const [deliveryEstimate, setDeliveryEstimate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<any | null>(null);
+  const [showDeliveryFlow, setShowDeliveryFlow] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
-  }, []);
+  }, [userLocation]);
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      
-      // Get Real Location
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      let locationToUse = { latitude: -1.286389, longitude: 36.817223 }; // Default Nairobi
-      
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        locationToUse = { latitude: location.coords.latitude, longitude: location.coords.longitude };
-        setUserLocation(locationToUse);
-      } else {
-        Alert.alert('Permission Denied', 'Using default location.');
-      }
 
-      const [itemsResult, bizsResult, driversResult, estimateResult] = await Promise.allSettled([
-        api.getAllFoodItems(),
+      const locationToUse = userLocation || (await getCurrentLocation()) || { latitude: -1.286389, longitude: 36.817223 };
+      const [bizsResult, driversResult, estimateResult] = await Promise.allSettled([
         api.getBusinesses({ type: 'restaurant', limit: 30 }),
         api.getNearbyMotorbikeDrivers(locationToUse.longitude, locationToUse.latitude, 10),
         api.getFoodDeliveryEstimate({ latitude: locationToUse.latitude, longitude: locationToUse.longitude, radius: 5000 }),
       ]);
 
-      if (itemsResult.status === 'fulfilled') {
-        setFoodItems(itemsResult.value || []);
-      } else {
-        console.error('Failed to fetch food items:', itemsResult.reason);
-        setFoodItems([]);
-      }
+      const businesses = bizsResult.status === 'fulfilled' ? (bizsResult.value || []) : [];
+      const drivers = driversResult.status === 'fulfilled' ? (driversResult.value || []) : [];
+      const estimate = estimateResult.status === 'fulfilled' ? estimateResult.value : null;
 
-      if (bizsResult.status === 'fulfilled') {
-        setRestaurants(bizsResult.value || []);
-      } else {
-        console.error('Failed to fetch restaurants:', bizsResult.reason);
-        setRestaurants([]);
-      }
-
-      if (driversResult.status === 'fulfilled') {
-        setMotorbikeDrivers(driversResult.value || []);
-      } else {
-        console.error('Failed to fetch nearby drivers:', driversResult.reason);
-        setMotorbikeDrivers([]);
-      }
-
-      if (estimateResult.status === 'fulfilled') {
-        setDeliveryEstimate(estimateResult.value);
-      } else {
-        console.error('Failed to fetch delivery estimate:', estimateResult.reason);
-        setDeliveryEstimate(null);
-      }
-    } catch (err) {
-      console.error('Failed to fetch food data:', err);
-      setFoodItems([]);
-      setRestaurants([]);
-      setMotorbikeDrivers([]);
-      setDeliveryEstimate(null);
+      setRestaurants(businesses);
+      setMotorbikeDrivers(drivers);
+      setDeliveryEstimate(estimate);
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Location Error', 'Unable to load restaurants near you.');
     } finally {
       setLoading(false);
     }
@@ -102,6 +71,15 @@ export default function FoodScreen() {
   });
 
   const recommendedRestaurants = sortedRestaurants.slice(0, 4);
+
+  const handleRestaurantSelect = (restaurant: any) => {
+    if (!userLocation) {
+      Alert.alert('Location required', 'Please enable location access to continue.');
+      return;
+    }
+    setSelectedRestaurant(restaurant);
+    setShowDeliveryFlow(true);
+  };
 
   const renderFoodItem = ({ item }: { item: any }) => (
     <TouchableOpacity 
@@ -125,27 +103,26 @@ export default function FoodScreen() {
 
   const renderHeader = () => (
     <View>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={24} color={Colors[colorScheme].text} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.deliveryToContainer} onPress={async () => {
-              try {
-                const response = await api.calculateDeliveryQuote({
-                  distance: 5,
-                  is_peak_hour: false,
-                  weather_surcharge: 0
-                });
-                alert(`Estimated delivery cost: ${response.estimated_price} ${response.currency}`);
-              } catch (e) {
-                console.error(e);
-              }
-            }}>
+          try {
+            const response = await api.calculateDeliveryQuote({
+              distance: 5,
+              is_peak_hour: false,
+              weather_surcharge: 0,
+            });
+            Alert.alert('Estimated delivery cost', `Estimated delivery cost: ${response.estimated_price} ${response.currency}`);
+          } catch (e) {
+            console.error(e);
+          }
+        }}>
           <ThemedText style={styles.deliveryTo}>Check Delivery Rates</ThemedText>
           <View style={styles.locationRow}>
             <MapPin size={14} color={activeColor} />
-            <ThemedText style={styles.addressText} numberOfLines={1}>Home, 123 Maple Avenue</ThemedText>
+            <ThemedText style={styles.addressText} numberOfLines={1}>{userLocation ? 'Current location' : 'Home, 123 Maple Avenue'}</ThemedText>
             <ChevronRight size={14} color={activeColor} style={{ marginLeft: 5 }} />
           </View>
         </TouchableOpacity>
@@ -155,12 +132,11 @@ export default function FoodScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
       <View style={styles.searchSection}>
         <View style={[styles.searchContainer, { backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#2a2a2a' }]}>
           <Search size={20} color="#888" style={styles.searchIcon} />
-          <TextInput 
-            placeholder="Search dishes or restaurants..." 
+          <TextInput
+            placeholder="Search dishes or restaurants..."
             placeholderTextColor="#888"
             style={[styles.searchInput, { color: Colors[colorScheme].text }]}
           />
@@ -170,9 +146,8 @@ export default function FoodScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Categories */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesList}>
-        {CATEGORIES.map(cat => (
+        {CATEGORIES.map((cat) => (
           <TouchableOpacity key={cat.id} style={styles.categoryItem}>
             <View style={[styles.categoryIcon, { backgroundColor: colorScheme === 'light' ? '#fff' : '#333' }]}>
               <Image source={{ uri: cat.image_url }} style={styles.categoryImage} />
@@ -182,7 +157,6 @@ export default function FoodScreen() {
         ))}
       </ScrollView>
 
-      {/* Delivery Coverage */}
       <View style={styles.deliveryInfoCard}>
         <View style={styles.deliveryInfoRow}>
           <MapPin size={16} color={activeColor} />
@@ -190,7 +164,7 @@ export default function FoodScreen() {
         </View>
         <ThemedText style={styles.deliveryKeyText}>
           {deliveryEstimate?.available
-            ? `Estimate: ${deliveryEstimate.estimated_minutes} min · ${deliveryEstimate.driver_count} drivers nearby`
+            ? `Estimate: ${deliveryEstimate.estimated_minutes} min · ${motorbikeDrivers.length || 0} drivers nearby`
             : 'Delivery may exceed 2 hours or be unavailable in your area.'}
         </ThemedText>
       </View>
@@ -204,11 +178,11 @@ export default function FoodScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRestaurantsList}>
-            {recommendedRestaurants.map(restaurant => (
+            {recommendedRestaurants.map((restaurant) => (
               <TouchableOpacity
                 key={restaurant.id}
                 style={[styles.quickRestaurantCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
-                onPress={() => router.push(`/shop/merchant/${restaurant.id}` as any)}
+                onPress={() => handleRestaurantSelect(restaurant)}
               >
                 <Image source={{ uri: restaurant.logo_url || 'https://via.placeholder.com/150' }} style={styles.quickRestaurantImage} />
                 <View style={styles.quickRestaurantInfo}>
@@ -229,45 +203,81 @@ export default function FoodScreen() {
 
       {restaurants.length > 0 && (
         <>
-            <View style={styles.sectionHeader}>
-                <ThemedText type="subtitle">Restaurants Near You</ThemedText>
-                <TouchableOpacity onPress={() => router.push('/restaurants' as any)}>
-                <ThemedText style={{ color: activeColor }}>See All</ThemedText>
-                </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRestaurantsList}>
-                {restaurants.map(restaurant => (
-                <TouchableOpacity 
-                    key={restaurant.id} 
-                    style={[styles.quickRestaurantCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
-                    onPress={() => router.push(`/shop/merchant/${restaurant.id}` as any)}
-                >
-                    <Image source={{ uri: restaurant.logo_url || 'https://via.placeholder.com/150' }} style={styles.quickRestaurantImage} />
-                    <View style={styles.quickRestaurantInfo}>
-                    <ThemedText numberOfLines={1} style={styles.quickRestaurantName}>{restaurant.name}</ThemedText>
-                    <View style={styles.ratingRow}>
-                        <Star size={12} color="#FFD700" fill="#FFD700" />
-                        <ThemedText style={styles.quickRestaurantRating}>{restaurant.rating || '0.0'}</ThemedText>
-                    </View>
-                    </View>
-                </TouchableOpacity>
-                ))}
-            </ScrollView>
+          <View style={styles.sectionHeader}>
+            <ThemedText type="subtitle">Restaurants Near You</ThemedText>
+            <TouchableOpacity onPress={() => router.push('/restaurants' as any)}>
+              <ThemedText style={{ color: activeColor }}>See All</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRestaurantsList}>
+            {restaurants.map((restaurant) => (
+              <TouchableOpacity
+                key={restaurant.id}
+                style={[styles.quickRestaurantCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
+                onPress={() => handleRestaurantSelect(restaurant)}
+              >
+                <Image source={{ uri: restaurant.logo_url || 'https://via.placeholder.com/150' }} style={styles.quickRestaurantImage} />
+                <View style={styles.quickRestaurantInfo}>
+                  <ThemedText numberOfLines={1} style={styles.quickRestaurantName}>{restaurant.name}</ThemedText>
+                  <View style={styles.ratingRow}>
+                    <Star size={12} color="#FFD700" fill="#FFD700" />
+                    <ThemedText style={styles.quickRestaurantRating}>{restaurant.rating || '0.0'}</ThemedText>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </>
       )}
 
-      {/* All Food Items Section Title */}
       <View style={styles.sectionHeader}>
         <ThemedText type="subtitle">All Food Items</ThemedText>
       </View>
     </View>
   );
 
+  if (showDeliveryFlow && selectedRestaurant && userLocation) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => { setShowDeliveryFlow(false); setSelectedRestaurant(null); }}>
+            <ArrowLeft size={24} color={Colors[colorScheme].text} />
+          </TouchableOpacity>
+          <ThemedText type="subtitle">Delivery Checkout</ThemedText>
+          <View style={styles.cartButton} />
+        </View>
+
+        <DeliveryFlow
+          shopLocation={{
+            latitude: selectedRestaurant.latitude ?? -1.286389,
+            longitude: selectedRestaurant.longitude ?? 36.817223,
+          }}
+          maxDeliveryDistance={10}
+          showEstimate={true}
+          onSuccess={(estimate) => {
+            Alert.alert('Ready to Order', `Delivery fee: KES ${estimate.delivery_fee}\nETA: ${estimate.estimated_minutes} mins`);
+            setShowDeliveryFlow(false);
+            setSelectedRestaurant(null);
+          }}
+          onError={(error) => {
+            Alert.alert('Delivery Error', error);
+            setShowDeliveryFlow(false);
+            setSelectedRestaurant(null);
+          }}
+          onCancel={() => {
+            setShowDeliveryFlow(false);
+            setSelectedRestaurant(null);
+          }}
+        />
+      </ThemedView>
+    );
+  }
+
   if (loading) {
     return (
-        <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-            <ActivityIndicator size="large" color={activeColor} />
-        </ThemedView>
+      <ThemedView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={activeColor} />
+      </ThemedView>
     );
   }
 

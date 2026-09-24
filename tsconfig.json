@@ -4,10 +4,17 @@
     "strict": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "paths": {
+      "@/services/*": [
+        "../packages/services/*"
+      ],
       "@/*": [
         "./*"
       ],
+      "@packages/*": [
+        "../packages/*"
+      ]
     }
   },
   "include": [

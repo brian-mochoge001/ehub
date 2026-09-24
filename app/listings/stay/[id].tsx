@@ -9,6 +9,53 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
+const ALL_STAYS: Record<string, {
+  id: string;
+  title: string;
+  price: string;
+  rating: number;
+  images: string[];
+  guests: number;
+  bedrooms: number;
+  baths: number;
+  description: string;
+  location: string;
+  vendor_id?: string;
+}> = {
+  '1': {
+    id: '1',
+    title: 'Sunny Loft in Westlands',
+    price: 'Ksh 4,500',
+    rating: 4.8,
+    images: [
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80',
+    ],
+    guests: 2,
+    bedrooms: 1,
+    baths: 1,
+    description: 'A bright, modern loft with a private terrace and fast Wi-Fi.',
+    location: 'Westlands, Nairobi',
+    vendor_id: '1',
+  },
+  '2': {
+    id: '2',
+    title: 'Garden Villa in Karen',
+    price: 'Ksh 7,200',
+    rating: 4.9,
+    images: [
+      'https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80',
+    ],
+    guests: 4,
+    bedrooms: 2,
+    baths: 2,
+    description: 'A peaceful villa with a private garden and outdoor dining area.',
+    location: 'Karen, Nairobi',
+    vendor_id: '2',
+  },
+};
+
 export default function StayDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();

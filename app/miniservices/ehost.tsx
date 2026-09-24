@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, Image, TouchableOpacity, TextInput, ActivityIndicator, ImageBackground } from 'react-native';
 import { ArrowLeft, Search, Star, Heart, HeartIcon, MapPinHouse } from 'lucide-react-native';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedText } from '@packages/components/themed-text';
+import { ThemedView } from '@packages/components/themed-view';
+import { Colors } from '@packages/constants/theme';
+import { useColorScheme } from '@packages/hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
-import { api } from '@/services/api'; // Assuming api.ts is correctly aliased
+import { api } from '@packages/services/api'; // Assuming api.ts is correctly aliased
 
 // Assume Stay type based on api.getProperties response structure and schema.sql
 interface Stay {
@@ -157,7 +157,7 @@ export default function HostScreen() {
         <View style={styles.sectionHeader}>
           <ThemedText type="subtitle">Popular Stays</ThemedText>
           {/* Navigation to a "See All" screen for properties could be added here */}
-          <TouchableOpacity onPress={() => router.push('/properties')}><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/properties' as any)}><ThemedText style={{ color: activeColor }}>See All</ThemedText></TouchableOpacity>
         </View>
 
         {stays.length > 0 ? stays.map(stay => (
@@ -240,8 +240,11 @@ export default function HostScreen() {
           <View style={{ flex: 1 }}>
             <ThemedText type="subtitle">Become a Host</ThemedText>
             <ThemedText style={styles.hostSubtitle}>Earn extra income and unlock new opportunities by sharing your space.</ThemedText>
-            <TouchableOpacity style={[styles.learnMoreBtn, { borderColor: Colors[colorScheme].text }]}>
-              <ThemedText style={{ fontWeight: 'bold' }}>Learn More</ThemedText>
+            <TouchableOpacity 
+                style={[styles.learnMoreBtn, { borderColor: Colors[colorScheme].text }]}
+                onPress={() => router.push('/miniservices/ehost-create' as any)}
+            >
+              <ThemedText style={{ fontWeight: 'bold' }}>List Your Property</ThemedText>
             </TouchableOpacity>
           </View>
           <MapPinHouse style={{ position: 'absolute', right: 0, bottom: 0, opacity: 0.4 }} size={150} color={activeColor} />

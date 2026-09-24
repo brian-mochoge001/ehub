@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, FlatList, View, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, ScrollView, FlatList, View, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { Search, Bell, Star, Wallet, CreditCard, Send, Plus, LayoutGrid, Smartphone, Shirt, House, Footprints, Dumbbell } from 'lucide-react-native';
 import { ThemedText } from '@/components/themed-text';
@@ -32,6 +32,7 @@ export default function HomeScreen() {
   const [categories, setCategories] = useState<any[]>([]);
   const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -44,19 +45,21 @@ export default function HomeScreen() {
 
   const fetchInitialData = async () => {
     try {
-      setLoading(true);
-      const [featured, flash, cats, walletData] = await Promise.all([
-        api.getFeaturedProducts(PAGE_SIZE, 0),
-        api.getFlashSaleProducts(),
+      if (!isRefreshing) setLoading(true);
+      const [personalized, flash, cats, walletData] = await Promise.all([
+        api.getPersonalizedProducts(PAGE_SIZE, 0),
+        api.getFlashSaleProducts(5),
         api.getCategories(),
         api.getWalletBalance().catch(() => null)
       ]);
-      setFeaturedProducts(featured);
+      
+      setFeaturedProducts(personalized);
       setFlashSales(flash);
+      
       setCategories(cats);
       setWallet(walletData);
       
-      if (featured.length < PAGE_SIZE) {
+      if (personalized.length < PAGE_SIZE) {
         setHasMore(false);
       }
       setPage(1);
@@ -64,8 +67,16 @@ export default function HomeScreen() {
       console.error('Failed to fetch home data:', err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setHasMore(true);
+    setPage(0);
+    fetchInitialData();
+  }, []);
 
   const loadMore = async () => {
     if (isLoadingMore || !hasMore) return;
@@ -73,12 +84,12 @@ export default function HomeScreen() {
     setIsLoadingMore(true);
     try {
         const offset = page * PAGE_SIZE;
-        const more = await api.getFeaturedProducts(PAGE_SIZE, offset);
+        const more = await api.getPersonalizedProducts(PAGE_SIZE, offset);
         
         if (more.length === 0) {
             setHasMore(false);
         } else {
-            // Prevent duplicates just in case
+            // Prevent duplicates
             setFeaturedProducts(prev => {
                 const existingIds = new Set(prev.map(p => p.id));
                 const uniqueMore = more.filter((p: any) => !existingIds.has(p.id));
@@ -174,7 +185,7 @@ export default function HomeScreen() {
                     style={[styles.flashSaleCard, { backgroundColor: colorScheme === 'light' ? '#fff' : '#222' }]}
                     onPress={() => router.push(`/shop/product/${item.id}`)}
                 >
-                    <View style={styles.flashSaleImageContainer}>
+                    <View style={styles.flashSaleImage}>
                       <Image 
                         source={{ uri: item.image_urls?.[0] || 'https://via.placeholder.com/150' }} 
                         style={styles.flashSaleImage} 
@@ -203,7 +214,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesList}>
-        {categories.map(cat => (
+        {Array.isArray(categories) && categories.map(cat => (
           <TouchableOpacity 
             key={cat.id} 
             style={styles.categoryItem}
@@ -258,7 +269,7 @@ export default function HomeScreen() {
     </TouchableOpacity>
   );
 
-  if (loading) {
+  if (loading && !isRefreshing) {
     return (
         <ThemedView style={styles.container}>
             <View style={styles.loaderContainer}>
@@ -285,6 +296,14 @@ export default function HomeScreen() {
         maxToRenderPerBatch={8}
         initialNumToRender={10}
         removeClippedSubviews={true}
+        refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={Colors[colorScheme].tint}
+              colors={[Colors[colorScheme].tint]}
+            />
+        }
         getItemLayout={(data, index) => ({
           length: 224,
           offset: 224 * Math.floor(index / 2),
@@ -345,6 +364,7 @@ const styles = StyleSheet.create({
   categoryName: { fontSize: 12, fontWeight: '500' },
   productsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 20 },
   productCard: { width: '48%', borderRadius: 20, marginBottom: 15, overflow: 'hidden', elevation: 3, shadowOpacity: 0.1, shadowRadius: 10 },
+  productImageContainer: { position: 'relative', overflow: 'hidden' },
   productImage: { width: '100%', height: 150 },
   wishlistIcon: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.2)', padding: 5, borderRadius: 10 },
   productInfo: { padding: 12 },

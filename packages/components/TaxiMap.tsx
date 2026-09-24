@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, Circle, Polyline } from 'react-native-maps';
-import { api } from '@/services/api';
+import { api } from '../services/api';
 import { Car, Bike } from 'lucide-react-native';
 import polyline from '@mapbox/polyline';
 

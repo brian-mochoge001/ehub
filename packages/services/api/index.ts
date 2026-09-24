@@ -1,8 +1,8 @@
-import { apiClient } from './apiClient';
+import { apiClient } from '../apiClient';
 
 export const api = {
   // Auth Methods
-  login: (data: any) => apiClient.post('/auth/login', data),
+  syncUser: (idToken: string, role?: string) => apiClient.post('/auth/sync', { id_token: idToken, role }),
   register: (data: any) => apiClient.post('/auth/register', data),
 
   getHubs: () => apiClient.get('/hubs'),
@@ -25,6 +25,7 @@ export const api = {
   getNearbyDrivers: (longitude: number, latitude: number, limit: number = 5, radius: number = 5000) => apiClient.get(`/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}&radius=${radius}`),
   getNearbyMotorbikeDrivers: (longitude: number, latitude: number, limit: number = 5, radius: number = 5000) => apiClient.get(`/delivery/drivers/nearby?longitude=${longitude}&latitude=${latitude}&limit=${limit}&radius=${radius}`),
   createTaxiTrip: (tripData: any) => apiClient.post('/taxi/request', tripData),
+  getPriceEstimate: (data: any) => apiClient.post('/pricing/estimate', data),
 
   // Business / Mall Methods
   getBusinessProfile: (id: string) => apiClient.get(`/businesses/${id}`),
@@ -51,8 +52,12 @@ export const api = {
 
   // Specialized Service Methods
   getBusRoutes: () => apiClient.get('/bus/routes'),
+  bookBusTicket: (data: any) => apiClient.post('/bus/tickets', data),
   getMovies: (nowPlaying: boolean = true) => apiClient.get(`/cinema/movies/${nowPlaying ? 'now-playing' : 'coming-soon'}`),
+  createMovie: (data: any) => apiClient.post('/cinema/movies', data),
   getMovieShowtimes: (movieId: string) => apiClient.get(`/cinema/movies/${movieId}/showtimes`),
+  createCinemaHall: (data: any) => apiClient.post('/cinema/halls', data),
+  listCinemaHalls: (businessId: string) => apiClient.get(`/cinema/halls?business_id=${businessId}`),
   getFlights: () => apiClient.get('/flights'),
   getJobs: () => apiClient.get('/jobs'),
 
@@ -65,6 +70,9 @@ export const api = {
 
   // Single item endpoints
   getFoodItem: (id: string) => apiClient.get(`/food-items/${id}`),
+  
+  // Delivery Quote
+  calculateDeliveryQuote: (data: any) => apiClient.post('/delivery/quote', data),
 
   // Businesses listing (supports optional filters via query string)
   getBusinesses: (params?: { type?: string; city?: string; owner_id?: string; limit?: number; offset?: number }) => {
@@ -86,6 +94,7 @@ export const api = {
 
   // Mall / Generic Ecommerce
   getFeaturedProducts: (limit: number = 10, offset: number = 0) => apiClient.get(`/featured-products?limit=${limit}&offset=${offset}`),
+  getPersonalizedProducts: (limit: number = 10, offset: number = 0) => apiClient.get(`/products?limit=${limit}&offset=${offset}`),
   filterProducts: (params: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
     return apiClient.get(`/products/filter?${q}`);
@@ -111,5 +120,6 @@ export const api = {
   getGroceryDeliveryQuote: (data: any) => apiClient.post('/groceries/delivery/estimate', data),
   getGroceryStores: (latitude: number, longitude: number, radius: number = 5000) => apiClient.get(`/grocery/stores?latitude=${latitude}&longitude=${longitude}&radius=${radius}`),
   getProperty: (id: string) => apiClient.get(`/properties/${id}`),
-  bookProperty: (data: any) => apiClient.post('/properties/bookings', data),
+  createPropertyListing: (data: any) => apiClient.post('/properties/listings', data),
+  bookProperty: (data: any) => apiClient.post('/properties/book', data),
 };

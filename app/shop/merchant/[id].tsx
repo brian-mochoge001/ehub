@@ -222,6 +222,7 @@ const styles = StyleSheet.create({
     description: { textAlign: 'center', marginVertical: 8, opacity: 0.7, fontSize: 14 },
     statsRow: { flexDirection: 'row', gap: 20, marginTop: 5 },
     stat: { flexDirection: 'row', alignItems: 'center' },
+    statLabel: { fontSize: 12, opacity: 0.6, marginRight: 4 },
     statText: { marginLeft: 5, fontWeight: 'bold' },
     tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: 'rgba(128,128,128,0.1)' },
     tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, gap: 8 },
